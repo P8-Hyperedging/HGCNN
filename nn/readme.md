@@ -1,0 +1,1 @@
+Husk at lægge yelp_dataset ind under nn mappen ellers virker lortet ikke :D
