@@ -4,3 +4,4 @@
 /nn/yelp_dataset.tar
 /nn/yelp_dataset/
 /nn/__pycache__
+/.venv

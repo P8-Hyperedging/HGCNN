@@ -35,7 +35,11 @@ class User:
 def load_business_data(base_path):
     businesses = []
 
-    with open(base_path + '/yelp_dataset/yelp_academic_dataset_business.json', 'r') as file:
+    with open(
+        base_path + '/yelp_dataset/yelp_academic_dataset_business.json',
+        'r',
+        encoding='utf-8'
+    ) as file:
         for i, line in enumerate(file):
             data = json.loads(line)
             b = Business(
@@ -50,20 +54,20 @@ def load_business_data(base_path):
 def load_user_data(base_path):
     users = []
 
-    with open(base_path + '/yelp_dataset/yelp_academic_dataset_user.json', 'r') as file:
+    with open(
+        base_path + '/yelp_dataset/yelp_academic_dataset_user.json',
+        'r',
+        encoding='utf-8'
+    ) as file:
         for i, line in enumerate(file):
-
             data = json.loads(line)
-
             user = User(
                 user_id=data["user_id"],
                 name=data["name"]
             )
-
             users.append(user)
 
     return users
-
 
 def load_review_data(businesses, users, base_path, limit=1000):
     reviews = []
@@ -71,7 +75,11 @@ def load_review_data(businesses, users, base_path, limit=1000):
     business_lookup = {b.business_id: b for b in businesses}
     user_lookup = {u.user_id: u for u in users}
 
-    with open(base_path + '/yelp_dataset/yelp_academic_dataset_review.json', 'r') as file:
+    with open(
+        base_path + '/yelp_dataset/yelp_academic_dataset_review.json',
+        'r',
+        encoding='utf-8'
+    ) as file:
         for i, line in enumerate(file):
             if i >= limit:
                 break
