@@ -1,6 +1,7 @@
 /frontend/.vscode
 /.idea
 .DS_Store
+/venv/
 /nn/yelp_dataset.tar
 /nn/yelp_dataset/
 /nn/__pycache__

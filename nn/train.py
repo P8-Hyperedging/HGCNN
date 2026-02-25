@@ -1,26 +1,28 @@
 import os
-
-import torch
 from torch_geometric.data import Data
-
-from nn.data import load_business_data, load_review_data, sort_businesses_by_review_count, load_user_data
-from nn.graph import build_bipartite_graph, visualize_bipartite
-
-edge_index = torch.tensor([[0, 1, 1, 2],
-                           [1, 0, 2, 1]], dtype=torch.long)
-x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
-
-data = Data(x=x, edge_index=edge_index)
+from collections import defaultdict
+from nn.data import load_review_data
+from nn.graph import build_hypergraph_data
 
 base_path = os.path.dirname(os.path.realpath(__file__))
 
-businesses = load_business_data(base_path)
-users = load_user_data(base_path)
-reviews = load_review_data(businesses, users, base_path, limit=50)
+reviews = load_review_data(base_path, limit=50000)
 
-print("Sample Reviews:")
-for r in reviews[:5]:
-    print(r)
+x, hyperedge_index, _ = build_hypergraph_data(reviews)
 
-G = build_bipartite_graph(reviews)
-visualize_bipartite(G)
+data = Data(x=x)
+data.hyperedge_index = hyperedge_index
+
+hyperedge_sizes = defaultdict(int)
+for he in hyperedge_index[1]:
+    hyperedge_sizes[he.item()] += 1
+
+print("Nodes (# businesses, # features per):", data.x.shape)
+print("Hyperedges (# entities connected, # incidence connections):", data.hyperedge_index.shape)
+print("Number of hyperedges (unique # of users):",
+      hyperedge_index[1].max().item() + 1)
+print("Hyperedge size stats (# reviews per user):")
+print("Min:", min(hyperedge_sizes.values()))
+print("Max:", max(hyperedge_sizes.values()))
+print("Average:",
+      sum(hyperedge_sizes.values()) / len(hyperedge_sizes))

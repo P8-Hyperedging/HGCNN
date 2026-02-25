@@ -12,16 +12,14 @@ class Business:
 
 
 class Review:
-    def __init__(self, review_id, business_id, business, user_id, user, stars):
+    def __init__(self, review_id, business_id, user_id, stars):
         self.review_id = review_id
         self.business_id = business_id
-        self.business = business
         self.user_id = user_id
-        self.user = user
         self.stars = stars
 
     def __repr__(self):
-        return f"Review({self.review_id}, {self.stars}, Business={self.business.name})"
+        return f"Review({self.review_id}, {self.stars})"
 
 class User:
     def __init__(self, user_id, name):
@@ -65,11 +63,8 @@ def load_user_data(base_path):
     return users
 
 
-def load_review_data(businesses, users, base_path, limit=1000):
+def load_review_data(base_path, limit=1000):
     reviews = []
-
-    business_lookup = {b.business_id: b for b in businesses}
-    user_lookup = {u.user_id: u for u in users}
 
     with open(base_path + '/yelp_dataset/yelp_academic_dataset_review.json', 'r') as file:
         for i, line in enumerate(file):
@@ -78,15 +73,10 @@ def load_review_data(businesses, users, base_path, limit=1000):
 
             data = json.loads(line)
 
-            business = business_lookup.get(data["business_id"])
-            user = user_lookup.get(data["user_id"])
-
             r = Review(
                 review_id=data["review_id"],
                 business_id=data["business_id"],
-                business=business,
                 user_id=data["user_id"],
-                user=user,
                 stars=data["stars"]
             )
 
@@ -110,3 +100,11 @@ def sort_businesses_by_review_count(businesses, users, reviews):
     )
 
     return sorted_businesses, review_count
+
+def group_reviews_by_user(reviews):
+    user_to_businesses = defaultdict(list)
+
+    for r in reviews:
+        user_to_businesses[r.user_id].append(r.business_id)
+
+    return user_to_businesses

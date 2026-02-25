@@ -1,31 +1,43 @@
-import networkx as nx
-import matplotlib.pyplot as plt
-
-def build_bipartite_graph(reviews):
-    G = nx.Graph()
-    for review in reviews:
-        G.add_node(review.user.user_id, label=review.user.name, type='user')
-        G.add_node(review.business.business_id, label=review.business.name, type='business')
-        G.add_edge(review.user.user_id, review.business.business_id)
-    return G
-
-def visualize_bipartite(G):
-    plt.figure(figsize=(12, 8))
-    pos = nx.spring_layout(G, k=0.5)  # Layout
+import torch
+from collections import defaultdict
+from nn.data import group_reviews_by_user
 
 
-    node_colors = []
-    for n in G.nodes(data=True):
-        if n[1]['type'] == 'user':
-            node_colors.append('skyblue')
-        else:
-            node_colors.append('lightgreen')
+def build_hypergraph_data(reviews):
+    business_ids = list({r.business_id for r in reviews})
+    business_to_idx = {bid: i for i, bid in enumerate(business_ids)}
 
-    nx.draw(G, pos, with_labels=False, node_color=node_colors, node_size=500, alpha=0.8, edge_color='gray')
+    user_to_businesses = group_reviews_by_user(reviews)
 
-    labels = {n[0]: n[1]['label'] for n in G.nodes(data=True)}
-    nx.draw_networkx_labels(G, pos, labels, font_size=8)
+    user_to_businesses = {
+        u: b_list
+        for u, b_list in user_to_businesses.items()
+        if len(b_list) >= 3
+    }
 
-    plt.title("User ↔ Business Hypergraph (Bipartite Graph)")
-    plt.axis('off')
-    plt.show()
+    node_indices = []
+    hyperedge_indices = []
+
+    for hyperedge_id, (user_id, business_list) in enumerate(user_to_businesses.items()):
+        for bid in business_list:
+            node_indices.append(business_to_idx[bid])
+            hyperedge_indices.append(hyperedge_id)
+
+    hyperedge_index = torch.tensor(
+        [node_indices, hyperedge_indices],
+        dtype=torch.long
+    )
+
+    rating_sum = defaultdict(float)
+    rating_count = defaultdict(int)
+
+    for r in reviews:
+        rating_sum[r.business_id] += r.stars
+        rating_count[r.business_id] += 1
+
+    x = torch.zeros(len(business_to_idx), 1)
+
+    for bid, idx in business_to_idx.items():
+        x[idx] = rating_sum[bid] / rating_count[bid]
+
+    return x, hyperedge_index, business_to_idx
