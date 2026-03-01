@@ -4,4 +4,10 @@
 /nn/yelp_dataset.tar
 /nn/yelp_dataset/
 /nn/__pycache__
+/tests/__pycache__
 /.venv
+nn/tests/__pycache__/util_tests.cpython-310-pytest-9.0.2.pyc
+nn/tests/__pycache__/test_utils.cpython-310-pytest-9.0.2.pyc
+/nn/data/yelp_dataset
+/__pycache__
+/nn/utils/__pycache__
