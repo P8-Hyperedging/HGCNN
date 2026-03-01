@@ -61,7 +61,7 @@ def hyperedge_concat(*H_list):
     """
     H = None
     for h in H_list:
-        if h is not None and h != []:
+        if h is not None and not (isinstance(h, list) and h == []):
             # for the first H appended to fused hypergraph incidence matrix
             if H is None:
                 H = h
