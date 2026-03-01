@@ -3,8 +3,8 @@ import os
 import torch
 from torch_geometric.data import Data
 
-from nn.data import load_business_data, load_review_data, sort_businesses_by_review_count, load_user_data
-from nn.graph import build_bipartite_graph, visualize_bipartite
+from data.data import load_business_data, load_review_data, sort_businesses_by_review_count, load_user_data
+from model.graph import build_bipartite_graph, visualize_bipartite
 
 edge_index = torch.tensor([[0, 1, 1, 2],
                            [1, 0, 2, 1]], dtype=torch.long)
@@ -22,3 +22,5 @@ print("Sample Reviews:")
 for r in reviews[:5]:
     print(r)
 
+G = build_bipartite_graph(reviews)
+visualize_bipartite(G)

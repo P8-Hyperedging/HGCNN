@@ -36,7 +36,7 @@ def load_business_data(base_path):
     businesses = []
 
     with open(
-        base_path + '/yelp_dataset/yelp_academic_dataset_business.json',
+        base_path + '/data/yelp_dataset/yelp_academic_dataset_business.json',
         'r',
         encoding='utf-8'
     ) as file:
@@ -55,7 +55,7 @@ def load_user_data(base_path):
     users = []
 
     with open(
-        base_path + '/yelp_dataset/yelp_academic_dataset_user.json',
+        base_path + '/data/yelp_dataset/yelp_academic_dataset_user.json',
         'r',
         encoding='utf-8'
     ) as file:
@@ -76,7 +76,7 @@ def load_review_data(businesses, users, base_path, limit=1000):
     user_lookup = {u.user_id: u for u in users}
 
     with open(
-        base_path + '/yelp_dataset/yelp_academic_dataset_review.json',
+        base_path + '/data/yelp_dataset/yelp_academic_dataset_review.json',
         'r',
         encoding='utf-8'
     ) as file:
