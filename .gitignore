@@ -10,4 +10,6 @@
 /nn/models/__pycache__
 /nn/models/.pytest_cache
 /nn/__pycache__
+/nn/.venv
 __pycache__
+/nn/HGCNN.egg-info
