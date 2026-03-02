@@ -21,7 +21,7 @@ data = Data(x=x, edge_index=edge_index)
 
 base_path = os.path.dirname(os.path.realpath(__file__))
 
-businesses = load_business_data(base_path, limit=1000)
+businesses = load_business_data(base_path, limit=10000)
 #users = load_user_data(base_path)
 #reviews = load_review_data(businesses, users, base_path, limit=50)
 
@@ -45,9 +45,9 @@ split = len(businesses) // 10
 training_range = np.arange(0, split)
 testing_range = np.arange(split+1, 2 * split)
 
-print( f"Training range: {training_range}, Testing range: {testing_range}" )
+print( f"Training range: {0} - {split}, Testing range: {split+1} - {2*split}" )
 
-H = construct_H_with_KNN(fm, K_neigs=10, split_diff_scale=False, is_probH=True, m_prob=1)
+H = construct_H_with_KNN(fm, K_neigs=20, split_diff_scale=False, is_probH=True, m_prob=1)
 
 print(f"H shape: {H.shape}")
 
