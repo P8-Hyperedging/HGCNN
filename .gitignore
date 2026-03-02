@@ -3,6 +3,7 @@
 .DS_Store
 /nn/data/yelp_dataset
 .venv/
+venv/
 __pycache__/
 .pytest_cache/
 *.egg-info/
