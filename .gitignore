@@ -1,7 +1,11 @@
 /frontend/.vscode
 /.idea
 .DS_Store
-/venv/
-/nn/yelp_dataset.tar
-/nn/yelp_dataset/
-/nn/__pycache__
+/nn/data/yelp_dataset
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+*.egg-info/
+*.pyc
+.vscode/
