@@ -7,7 +7,7 @@ import copy
 from torch_geometric.data import Data
 from torch import optim
 
-from data.data import load_business_data, load_review_data, sort_businesses_by_review_count, load_user_data
+from data.data import load_business_data, load_postgres_business_data, load_postgres_review_data, load_review_data, sort_businesses_by_review_count, load_user_data
 from model.graph import build_bipartite_graph, visualize_bipartite
 from data.knn_preprocessing import create_business_feature_matrix, create_label_vector
 from utils.utils import construct_H_with_KNN, generate_G_from_H
@@ -20,9 +20,8 @@ x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
 
 data = Data(x=x, edge_index=edge_index)
 
-base_path = os.path.dirname(os.path.realpath(__file__))
 
-businesses = load_business_data(base_path, limit=10000)
+businesses = load_postgres_business_data(limit=10000)
 #users = load_user_data(base_path)
 #reviews = load_review_data(businesses, users, base_path, limit=50)
 
