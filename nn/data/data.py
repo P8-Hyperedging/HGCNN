@@ -39,11 +39,11 @@ class User:
     
 params = config()
 
-conn = psycopg2.connect(**params)
 
 def load_postgres_business_data(limit=200000):
     businesses = []
 
+    conn = psycopg2.connect(**params)
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT business_id, name, stars, review_count, longitude, latitude FROM business LIMIT %s", (limit,))
@@ -65,6 +65,7 @@ def load_postgres_business_data(limit=200000):
 def load_postgres_user_data(limit=200000):
     users = []
 
+    conn = psycopg2.connect(**params)
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT user_id, name FROM users LIMIT %s", (limit,))
@@ -76,12 +77,13 @@ def load_postgres_user_data(limit=200000):
                 users.append(u)
     finally:
         conn.close()
-        
+
     return users
 
 def load_postgres_review_data(limit=100000):
     reviews = []
 
+    conn = psycopg2.connect(**params)
     try:
         with conn.cursor() as cur:
             cur.execute(
@@ -127,6 +129,7 @@ def load_postgres_review_data(limit=100000):
                 reviews.append(r)
     finally:
         conn.close()
+
     return reviews
 
 
