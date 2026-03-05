@@ -1,4 +1,6 @@
 import json
+import psycopg2
+from utils.config import config
 
 
 class Business:
@@ -33,6 +35,51 @@ class User:
 
     def __repr__(self):
         return f"User({self.user_id}, {self.name})"
+
+    
+params = config()
+
+conn = psycopg2.connect(**params)
+
+def load_postgres_business_data(limit=200000):
+    businesses = []
+    
+    params = config()
+
+    conn = psycopg2.connect(**params)
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT business_id, name, stars, review_count, longitude, latitude FROM business LIMIT %s", (limit,))
+        for row in cur.fetchall():
+            b = Business(
+                business_id=row[0],
+                name=row[1],
+                stars=row[2],
+                review_count=row[3],
+                longitude=row[4],
+                latitude=row[5]
+            )
+            businesses.append(b)
+
+    return businesses
+
+def load_postgres_user_data(limit=200000):
+    users = []
+
+    with conn.cursor() as cur:
+        cur.execute("SELECT user_id, name FROM users LIMIT %s", (limit,))
+        for row in cur.fetchall():
+            u = User(
+                user_id=row[0],
+                name=row[1]
+            )
+            users.append(u)
+
+    return users
+
+def load_postgres_review_data(limit=200000):
+    # Clarification??
+    return []
 
 
 def load_business_data(base_path, limit=200000): # Total businesses in dataset is around 150k, so default loads all.
