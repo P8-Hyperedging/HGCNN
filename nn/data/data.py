@@ -77,9 +77,52 @@ def load_postgres_user_data(limit=200000):
 
     return users
 
-def load_postgres_review_data(limit=200000):
-    # Clarification??
-    return []
+def load_postgres_review_data(limit=100000):
+    reviews = []
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT 
+                review_id, 
+                review.user_id, 
+                review.stars, 
+                business.business_id, 
+                business.name, 
+                business.stars, 
+                business.review_count, 
+                business.longitude, 
+                business.latitude, 
+                yelp_user.user_id,
+                yelp_user.name
+            FROM review 
+            JOIN business ON review.business_id = business.business_id 
+            JOIN yelp_user ON review.user_id = yelp_user.user_id 
+            LIMIT %s
+            """,
+            (limit,)
+        )
+        for row in cur.fetchall():
+            r = Review(
+                review_id=row[0],
+                business_id=row[3],
+                business=Business(
+                    business_id=row[3],
+                    name=row[4],
+                    stars=row[5],
+                    review_count=row[6],
+                    longitude=row[7],
+                    latitude=row[8]
+                ),
+                user_id=row[1],
+                user=User(
+                    user_id=row[1],
+                    name=row[9]
+                ),
+                stars=row[2]
+            )
+            reviews.append(r)
+    return reviews
 
 
 def load_business_data(base_path, limit=200000): # Total businesses in dataset is around 150k, so default loads all.
