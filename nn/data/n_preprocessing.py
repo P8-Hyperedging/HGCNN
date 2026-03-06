@@ -1,9 +1,13 @@
-import torch
+import numpy as np
 from collections import defaultdict
 from data.data import group_reviews_by_user
 
-def build_hypergraph_data(reviews, min_reviews_per_user=0):
-    business_ids = list({r.business_id for r in reviews})
+def build_hypergraph_incidence_matrix(reviews, min_reviews_per_user=0):
+    '''Builds a hypergraph incidence matrix `H` where nodes are businesses 
+       and hyperedges are groups of user reviews. 
+       Only users with at least `min_reviews_per_user` 
+       reviews are included.'''
+    business_ids = list({r.business.business_id for r in reviews})
     business_to_idx = {bid: i for i, bid in enumerate(business_ids)}
 
     user_to_businesses = group_reviews_by_user(reviews)
@@ -22,15 +26,12 @@ def build_hypergraph_data(reviews, min_reviews_per_user=0):
             node_indices.append(business_to_idx[bid])
             hyperedge_indices.append(hyperedge_id)
 
-    # Number of nodes and hyperedges
     num_nodes = len(business_to_idx)
     num_hyperedges = len(user_to_businesses)
 
-    # Create a dense incidence matrix
-    H = torch.zeros((num_nodes, num_hyperedges), dtype=torch.float)
+    H = np.zeros((num_nodes, num_hyperedges), dtype=float)
 
-    # Populate the incidence matrix
     for node, edge in zip(node_indices, hyperedge_indices):
         H[node, edge] = 1
 
-    return H
+    return H, business_ids, business_to_idx

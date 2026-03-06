@@ -17,14 +17,14 @@ class Business:
 
 
 class Review:
-    def __init__(self, review_id, business_id, user_id, stars):
+    def __init__(self, review_id, business, user, stars):
         self.review_id = review_id
-        self.business_id = business_id
-        self.user_id = user_id
+        self.business = business
+        self.user = user
         self.stars = stars
 
     def __repr__(self):
-        return f"Review({self.review_id}, {self.stars})"
+        return f"Review({self.review_id}, {self.business.business_id}, {self.user.user_id}, {self.stars})"
 
 class User:
     def __init__(self, user_id, name):
@@ -58,6 +58,32 @@ def load_postgres_business_data(limit=200000):
     finally:
         conn.close()
 
+    return businesses
+
+def load_postgres_business_list_data(business_ids):
+    businesses = []
+    conn = psycopg2.connect(**params)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT business_id, name, stars, review_count, longitude, latitude
+                FROM business
+                WHERE business_id = ANY(%s)
+                """,
+                (list(business_ids),)
+            )
+            for row in cur.fetchall():
+                businesses.append(Business(
+                    business_id=row[0],
+                    name=row[1],
+                    stars=row[2],
+                    review_count=row[3],
+                    longitude=row[4],
+                    latitude=row[5]
+                ))
+    finally:
+        conn.close()
     return businesses
 
 def load_postgres_user_data(limit=200000):
@@ -106,22 +132,23 @@ def load_postgres_review_data(limit=100000):
                 (limit,)
             )
             for row in cur.fetchall():
+                business = Business(
+                    business_id=row[3],
+                    name=row[4],
+                    stars=row[5],
+                    review_count=row[6],
+                    longitude=row[7],
+                    latitude=row[8]
+                )
+                user = User(
+                    user_id=row[1],
+                    name=row[9]
+                )
+
                 r = Review(
                     review_id=row[0],
-                    business_id=row[3],
-                    business=Business(
-                        business_id=row[3],
-                        name=row[4],
-                        stars=row[5],
-                        review_count=row[6],
-                        longitude=row[7],
-                        latitude=row[8]
-                    ),
-                    user_id=row[1],
-                    user=User(
-                        user_id=row[1],
-                        name=row[9]
-                    ),
+                    business=business,
+                    user=user,
                     stars=row[2]
                 )
                 reviews.append(r)
@@ -129,7 +156,6 @@ def load_postgres_review_data(limit=100000):
         conn.close()
 
     return reviews
-
 
 def load_business_data(base_path, limit=200000): # Total businesses in dataset is around 150k, so default loads all.
     businesses = []
@@ -223,6 +249,6 @@ def group_reviews_by_user(reviews):
     user_to_businesses = defaultdict(list)
 
     for r in reviews:
-        user_to_businesses[r.user_id].append(r.business_id)
+        user_to_businesses[r.user.user_id].append(r.business.business_id)
 
     return user_to_businesses
