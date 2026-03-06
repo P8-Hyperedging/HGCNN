@@ -1,12 +1,12 @@
 import os
 from torch_geometric.data import Data
 from collections import defaultdict
-from nn.data import load_review_data
-from nn.graph import build_hypergraph_data
+from data.data import load_review_data
+from model.graph import build_hypergraph_data
 
 base_path = os.path.dirname(os.path.realpath(__file__))
 
-reviews = load_review_data(base_path, limit=50000)
+reviews = load_review_data(base_path, limit=500000)
 
 x, hyperedge_index, _ = build_hypergraph_data(reviews)
 
