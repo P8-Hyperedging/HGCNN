@@ -217,10 +217,16 @@ def load_review_data(businesses, users, base_path, limit=1000):
 
             data = json.loads(line)
 
+            business = business_lookup.get(data["business_id"])
+            user = user_lookup.get(data["user_id"])
+
+            if business is None or user is None:
+                continue
+
             r = Review(
                 review_id=data["review_id"],
-                business_id=data["business_id"],
-                user_id=data["user_id"],
+                business=business,
+                user=user,
                 stars=data["stars"]
             )
 
@@ -235,7 +241,7 @@ def sort_businesses_by_review_count(businesses, users, reviews):
     review_count = defaultdict(int)
 
     for review in reviews:
-        review_count[review.business_id] += 1
+        review_count[review.business.business_id] += 1
 
     sorted_businesses = sorted(
         businesses,

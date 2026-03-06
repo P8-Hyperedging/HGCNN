@@ -4,7 +4,7 @@ from data.data import group_reviews_by_user
 
 def build_hypergraph_incidence_matrix(reviews, min_reviews_per_user=0):
     '''Builds a hypergraph incidence matrix `H` where nodes are businesses 
-       and hyperedges are groups of user reviews. 
+       and hyperedges are user reviews. 
        Only users with at least `min_reviews_per_user` 
        reviews are included.'''
     business_ids = list({r.business.business_id for r in reviews})
