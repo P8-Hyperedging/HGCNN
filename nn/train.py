@@ -1,5 +1,3 @@
-import os
-
 import torch
 import numpy as np
 import time
@@ -7,8 +5,8 @@ import copy
 from torch_geometric.data import Data
 from torch import optim
 
-from data.data import load_business_data, load_postgres_business_data, load_postgres_review_data, load_review_data, sort_businesses_by_review_count, load_user_data
-from model.graph import build_bipartite_graph, visualize_bipartite
+from data.data import load_business_data, load_postgres_business_data, load_postgres_business_list_data, load_postgres_review_data, load_review_data, sort_businesses_by_review_count, load_user_data
+from data.n_preprocessing import build_hypergraph_incidence_matrix
 from data.knn_preprocessing import create_business_feature_matrix, create_label_vector
 from utils.utils import construct_H_with_KNN, generate_G_from_H
 from model.MoonLabHGNN.HGNN import HGNN
@@ -20,20 +18,20 @@ x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
 
 data = Data(x=x, edge_index=edge_index)
 
-
-businesses = load_postgres_business_data(limit=10000)
-#users = load_user_data(base_path)
-#reviews = load_review_data(businesses, users, base_path, limit=50)
+reviews = load_postgres_review_data(limit=10000)
 
 print("Sample Reviews:")
-for r in businesses[:10]:
+for r in reviews[:10]:
     print(r)
 
+H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(reviews, min_reviews_per_user=3)
+
+print(f"Business-to-index mapping: {business_to_idx}")
+
+businesses = load_postgres_business_list_data(business_ids)
 
 fm = create_business_feature_matrix(businesses)
-
-for i in fm[:10]:
-    print(i)
+print(f"Feature matrix shape: {fm.shape}")
 
 lv = create_label_vector(businesses)
 
@@ -45,9 +43,7 @@ split = len(businesses) // 10
 training_range = np.arange(0, split)
 testing_range = np.arange(split+1, 2 * split)
 
-print( f"Training range: {0} - {split}, Testing range: {split+1} - {2*split}" )
-
-H = construct_H_with_KNN(fm, K_neigs=20, split_diff_scale=False, is_probH=True, m_prob=1)
+print(f"Training range: {0} - {split}, Testing range: {split+1} - {2*split}")
 
 print(f"H shape: {H.shape}")
 
@@ -77,5 +73,3 @@ scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50, 100], gamm
 criterion = torch.nn.CrossEntropyLoss()
 
 model_ft = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs=1000, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G)
-#G = build_bipartite_graph(reviews)
-#visualize_bipartite(G)
