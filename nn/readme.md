@@ -4,7 +4,7 @@ Run it (surely):
 
 `python -m venv .venv`
 
-`source .venv/bin/activate   # Windows: .venv\Scripts\activate`
+`source .venv/bin/activate   # Windows: .\venv\Scripts\Activate.ps1`
 
 `pip install -r nn/requirements.txt`
 
