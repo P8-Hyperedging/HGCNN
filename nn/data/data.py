@@ -104,33 +104,50 @@ def load_postgres_user_data(limit=200000):
 
     return users
 
-def load_postgres_review_data(limit=100000):
+def load_postgres_review_data(limit=100000, min_reviews_per_user=0):
     reviews = []
 
     conn = psycopg2.connect(**params)
     try:
         with conn.cursor() as cur:
-            cur.execute(
+            if min_reviews_per_user > 0:
+                query = """
+                    WITH limited_reviews AS (
+                        SELECT 
+                            review_id, review.user_id, review.stars, 
+                            business.business_id, business.name, business.stars, 
+                            business.review_count, business.longitude, business.latitude, 
+                            yelp_user.user_id as yelp_user_id, yelp_user.name
+                        FROM review 
+                        JOIN business ON review.business_id = business.business_id 
+                        JOIN yelp_user ON review.user_id = yelp_user.user_id
+                        LIMIT %s
+                    ),
+                    user_counts AS (
+                        SELECT user_id, COUNT(*) as review_count_in_set
+                        FROM limited_reviews
+                        GROUP BY user_id
+                        HAVING COUNT(*) >= %s
+                    )
+                    SELECT * FROM limited_reviews
+                    WHERE user_id IN (SELECT user_id FROM user_counts)
                 """
-                SELECT 
-                    review_id, 
-                    review.user_id, 
-                    review.stars, 
-                    business.business_id, 
-                    business.name, 
-                    business.stars, 
-                    business.review_count, 
-                    business.longitude, 
-                    business.latitude, 
-                    yelp_user.user_id,
-                    yelp_user.name
-                FROM review 
-                JOIN business ON review.business_id = business.business_id 
-                JOIN yelp_user ON review.user_id = yelp_user.user_id 
-                LIMIT %s
-                """,
-                (limit,)
-            )
+                query_params = (limit, min_reviews_per_user)
+            else:
+                query = """
+                    SELECT 
+                        review_id, review.user_id, review.stars, 
+                        business.business_id, business.name, business.stars, 
+                        business.review_count, business.longitude, business.latitude, 
+                        yelp_user.user_id as yelp_user_id, yelp_user.name
+                    FROM review 
+                    JOIN business ON review.business_id = business.business_id 
+                    JOIN yelp_user ON review.user_id = yelp_user.user_id
+                    LIMIT %s
+                """
+                query_params = (limit,)
+            
+            cur.execute(query, query_params)
             for row in cur.fetchall():
                 business = Business(
                     business_id=row[3],
@@ -142,7 +159,7 @@ def load_postgres_review_data(limit=100000):
                 )
                 user = User(
                     user_id=row[1],
-                    name=row[9]
+                    name=row[10]
                 )
 
                 r = Review(

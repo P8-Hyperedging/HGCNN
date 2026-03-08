@@ -18,13 +18,13 @@ x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
 
 data = Data(x=x, edge_index=edge_index)
 
-reviews = load_postgres_review_data(limit=10000)
+reviews = load_postgres_review_data(limit=10000, min_reviews_per_user=3)
 
 print("Sample Reviews:")
 for r in reviews[:10]:
     print(r)
 
-H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(reviews, min_reviews_per_user=3)
+H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(reviews)
 
 print(f"Business-to-index mapping: {business_to_idx}")
 

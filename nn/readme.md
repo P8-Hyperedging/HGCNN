@@ -11,3 +11,7 @@ Run it (surely):
 `cd nn`
 
 `python train.py`
+
+Run all pytests (from HGCNN folder):
+
+`pytest -v -s`
