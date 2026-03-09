@@ -5,7 +5,7 @@ import copy
 from torch_geometric.data import Data
 from torch import optim
 
-from data.data import load_business_data, load_postgres_business_data, load_postgres_business_list_data, load_postgres_review_data, load_review_data, sort_businesses_by_review_count, load_user_data
+from data.data import *
 from data.n_preprocessing import build_hypergraph_incidence_matrix
 from data.knn_preprocessing import create_business_feature_matrix, create_label_vector
 from utils.utils import construct_H_with_KNN, generate_G_from_H
