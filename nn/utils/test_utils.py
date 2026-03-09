@@ -5,7 +5,7 @@ import sys
 import numpy as np
 import pytest
 
-from utils import Eu_dis
+from utils.utils import Eu_dis
 
 def test_eu_dis_basic():
     x = np.array([
