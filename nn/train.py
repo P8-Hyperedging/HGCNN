@@ -18,7 +18,7 @@ x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
 
 data = Data(x=x, edge_index=edge_index)
 
-reviews = load_postgres_review_data(limit=10000, min_reviews_per_user=3)
+reviews = load_postgres_review_data()
 
 print("Sample Reviews:")
 for r in reviews[:10]:
