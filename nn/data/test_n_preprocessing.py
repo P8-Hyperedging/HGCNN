@@ -48,13 +48,14 @@ def test_create_business_feature_matrix():
     ]
 
     hours = [
-        OpeningHours("b1", 
-                     [type('datetime', (object,), {'hour': 9, 'minute': 0})(), None, None, None, None, None, None, None, None, None, None, None, None, None]),
-        OpeningHours("b2", 
-                     [None, None, type('datetime', (object,), {'hour': 10, 'minute': 0})(), None, None, None, None, None, None, None, None, None, None]),
-        OpeningHours("b3", 
-                     [None, None, None, None, None, None, None, None, None, None, None, None, None, None])
+        OpeningHours("b1", np.full(14, None)),
+        OpeningHours("b2", np.full(14, None)),
+        OpeningHours("b3",  np.full(14, None))
     ]
+
+    hours[0].hours[0] = type('datetime', (object,), {'hour': 9, 'minute': 0})()
+    hours[1].hours[2] = type('datetime', (object,), {'hour': 10, 'minute': 0})()
+    # b1 opens Monday at 9:00, b2 opens Tuesday at 10:00, b3 has no opening hours data
 
     fm = create_business_feature_matrix(businesses, hours)
     print(f"Feature matrix:\n{fm}")
