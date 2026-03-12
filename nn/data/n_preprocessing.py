@@ -4,28 +4,39 @@ from data.data import group_reviews_by_user
 from data.data import OpeningHours
 
 def build_hypergraph_incidence_matrix(reviews):
-    '''Builds a hypergraph incidence matrix `H` where nodes are businesses 
-       and hyperedges are user reviews. '''
-    business_ids = list({r.business.business_id for r in reviews})
-    business_to_idx = {bid: i for i, bid in enumerate(business_ids)}
+    """ Builds a hypergraph incidence matrix H. Rows/nodes are businesses, columns/hyperedges are users. 
+    H[i, j] = 1 if business i was reviewed by user j. """
 
+    # group businesses by user
     user_to_businesses = group_reviews_by_user(reviews)
 
-    node_indices = []
-    hyperedge_indices = []
+    # collect all unique business IDs
+    business_ids_set = set()
+    for businesses in user_to_businesses.values():
+        business_ids_set.update(businesses)
 
-    for hyperedge_id, (user_id, business_list) in enumerate(user_to_businesses.items()):
-        for bid in business_list:
-            node_indices.append(business_to_idx[bid])
-            hyperedge_indices.append(hyperedge_id)
+    business_ids = list(business_ids_set)
 
-    num_nodes = len(business_to_idx)
+    # assign each business a row index
+    business_to_idx = {}
+    for i in range(len(business_ids)):
+        business_to_idx[business_ids[i]] = i
+
+    # matrix size
+    num_nodes = len(business_ids)
     num_hyperedges = len(user_to_businesses)
 
+    # initialize incidence matrix
     H = np.zeros((num_nodes, num_hyperedges), dtype=float)
 
-    for node, edge in zip(node_indices, hyperedge_indices):
-        H[node, edge] = 1
+    # fill incidence matrix
+    user_column = 0
+    for user_id in user_to_businesses:
+        reviewed_businesses = user_to_businesses[user_id]
+        for business_id in reviewed_businesses:
+            business_row = business_to_idx[business_id]
+            H[business_row, user_column] = 1
+        user_column += 1
 
     return H, business_ids, business_to_idx
 

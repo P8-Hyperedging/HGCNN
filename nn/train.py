@@ -17,15 +17,14 @@ x = torch.tensor([[-1], [0], [1]], dtype=torch.float)
 
 data = Data(x=x, edge_index=edge_index)
 
-reviews = load_postgres_review_data(limit=50000, min_reviews_per_user=3)
+reviews = load_postgres_review_data()
+
 H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(reviews)
 hours = load_postgres_business_list_opening_hours(business_ids)
 businesses = load_postgres_business_list_data(business_ids)
 
 fm = create_business_feature_matrix(businesses, hours)
 print(f"Feature matrix shape: {fm.shape}")
-#for i in range(50):
-    #print(f"Business {i} features: {fm[i]}")
 
 lv = create_label_vector(businesses)
 
