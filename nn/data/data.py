@@ -1,5 +1,6 @@
 import json
 import psycopg2
+import numpy as np
 from psycopg2 import sql
 from utils.config import config
 
@@ -35,7 +36,15 @@ class User:
     def __repr__(self):
         return f"User({self.user_id}, {self.name})"
 
-    
+
+class OpeningHours: 
+    def __init__(self, business_id, hours):
+        self.business_id = business_id
+        self.hours = np.array(hours)
+
+    def __repr__(self):
+        return f"OpeningHours({self.business_id}, {self.hours})"
+
 params = config()
 
 
@@ -83,6 +92,47 @@ def load_postgres_business_list_data(business_ids):
                     longitude=row[4],
                     latitude=row[5]
                 ))
+    finally:
+        conn.close()
+    return businesses
+
+def load_postgres_business_list_opening_hours(business_ids):
+    businesses = []
+    conn = psycopg2.connect(**params)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH input_ids AS (
+                    SELECT UNNEST(%s) AS business_id
+                )
+                SELECT
+                    input_ids.business_id,
+                    MAX(CASE WHEN day = 'Monday'    THEN open  END) AS monday_open,
+                    MAX(CASE WHEN day = 'Monday'    THEN close END) AS monday_close,
+                    MAX(CASE WHEN day = 'Tuesday'   THEN open  END) AS tuesday_open,
+                    MAX(CASE WHEN day = 'Tuesday'   THEN close END) AS tuesday_close,
+                    MAX(CASE WHEN day = 'Wednesday' THEN open  END) AS wednesday_open,
+                    MAX(CASE WHEN day = 'Wednesday' THEN close END) AS wednesday_close,
+                    MAX(CASE WHEN day = 'Thursday'  THEN open  END) AS thursday_open,
+                    MAX(CASE WHEN day = 'Thursday'  THEN close END) AS thursday_close,
+                    MAX(CASE WHEN day = 'Friday'    THEN open  END) AS friday_open,
+                    MAX(CASE WHEN day = 'Friday'    THEN close END) AS friday_close,
+                    MAX(CASE WHEN day = 'Saturday'  THEN open  END) AS saturday_open,
+                    MAX(CASE WHEN day = 'Saturday'  THEN close END) AS saturday_close,
+                    MAX(CASE WHEN day = 'Sunday'    THEN open  END) AS sunday_open,
+                    MAX(CASE WHEN day = 'Sunday'    THEN close END) AS sunday_close
+                FROM input_ids
+                LEFT JOIN business_hours ON input_ids.business_id = business_hours.business_id
+                GROUP BY input_ids.business_id
+                ORDER BY input_ids.business_id
+                """,
+                (list(business_ids),)
+            )
+            for row in cur.fetchall():
+                business_id = row[0]
+                hours = row[1:15]
+                businesses.append(OpeningHours(business_id, hours))
     finally:
         conn.close()
     return businesses
