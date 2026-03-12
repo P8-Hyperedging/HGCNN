@@ -65,11 +65,13 @@ def create_business_feature_matrix(businesses, opening_hours):
     for i in range(nodes):
         b = businesses[i]
         oh = opening_hours[i]
+        words =
         
         fm[i, 0] = b.review_count
         fm[i, 1] = b.longitude
         fm[i, 2] = b.latitude 
         fm[i, 3:17] = get_opening_hours_vector(oh)
+        fm[i, 17:200] = get_word_bank()
     return fm
 
 # All nodes need to have SOME label for the KNN pre-processing from the paper

@@ -6,7 +6,7 @@ Run it (surely):
 
 `source .venv/bin/activate   # Windows: .\venv\Scripts\Activate.ps1`
 
-`pip install -r nn/requirements.txt`
+`pip install -r ../requirements.txt`
 
 `cd nn`
 
