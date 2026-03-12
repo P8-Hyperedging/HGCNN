@@ -37,7 +37,7 @@ class User:
         return f"User({self.user_id}, {self.name})"
 
 
-class OpeningHours: 
+class OpeningHours:
     def __init__(self, business_id, hours):
         self.business_id = business_id
         self.hours = np.array(hours)
