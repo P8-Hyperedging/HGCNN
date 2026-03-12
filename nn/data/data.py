@@ -127,7 +127,7 @@ def load_postgres_business_list_opening_hours(business_ids):
                 GROUP BY input_ids.business_id
                 ORDER BY input_ids.business_id
                 """,
-                (list(business_ids),) #
+                (list(business_ids),)
             )
             for row in cur.fetchall():
                 business_id = row[0]
