@@ -210,6 +210,7 @@ if __name__ == '__main__':
 
     ### Training loop ###
     runtime_list = []
+    total_start_time = time.time()
     for run in tqdm(range(args.runs)):
         start_time = time.time()
         split_idx = split_idx_lst[run]
@@ -242,6 +243,10 @@ if __name__ == '__main__':
 
         end_time = time.time()
         runtime_list.append(end_time - start_time)
+
+        total_end_time = time.time()
+        total_runtime = total_end_time - total_start_time
+
     
         # logger.print_statistics(run)
     
@@ -254,13 +259,19 @@ if __name__ == '__main__':
         os.makedirs(res_root)
 
     filename = f'{res_root}/{args.dname}_noise_{args.feature_noise}.csv'
+    write_header = not osp.exists(filename) or osp.getsize(filename) == 0
     print(f"Saving results to {filename}")
+
     with open(filename, 'a+') as write_obj:
+        if write_header:
+            header = 'Method,Best_Val,Best_Test,Num_Params,Total_Runtime(s)\n'
+            write_obj.write(header)
         cur_line = f'{args.method}_{args.lr}_{args.wd}_{args.heads}'
-        cur_line += f',{best_val.mean():.3f} ± {best_val.std():.3f}'
-        cur_line += f',{best_test.mean():.3f} ± {best_test.std():.3f}'
-        cur_line += f',{num_params}, {avg_time:.2f}s, {std_time:.2f}s' 
-        cur_line += f',{avg_time//60}min{(avg_time % 60):.2f}s'
+        # cur_line += f',{best_val.mean():.3f} +- {best_val.std():.3f}'   # Don't currently need avg
+        # cur_line += f',{best_test.mean():.3f} +- {best_test.std():.3f}' # kept for future if needed
+        cur_line += f',{num_params}' #, {avg_time:.2f}s, {std_time:.2f}s' 
+        # cur_line += f',{avg_time//60}min{(avg_time % 60):.2f}s'
+        cur_line += f',{total_runtime:.2f}s'
         cur_line += f'\n'
         write_obj.write(cur_line)
 
