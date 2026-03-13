@@ -56,6 +56,18 @@ def get_opening_hours_vector(business_hours : OpeningHours):
         print(f"Warning: Business {business_hours.business_id} has no opening hours data.")
     return oh_features
 
+# Should probably use businesses and reviews as parameters
+def create_quality_matrix(G):
+    # Add rules for determining quality of hyperedges here.
+    # Idea 1: Businesses with low review count get lower aggregation contribution (lower weight).
+    # (this is probably already the case because of the laplacian normalization, 
+    # but we could also explicitly add it as a weight, idk its a blackbox).
+    # Idea 2: Users who review many businesses get lower aggregation contribution 
+    # Idea 3: Use variance or other statistical measure of the ratings given by a user as a weight 
+    # (users with more consistent ratings could be more reliable(or less!)).
+  
+    return G
+
 def create_business_feature_matrix(businesses, opening_hours):
     nodes = len(businesses)
     fm = np.zeros((nodes, 17)) # Magic number = number of features per node

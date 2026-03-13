@@ -3,7 +3,7 @@ import time
 import copy
 import torch
 
-def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None):
+def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, Q=None):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -30,7 +30,7 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
             # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
-                outputs = model(fts, G)
+                outputs = model(fts, G, Q)
                 loss = criterion(outputs[idx], lbls[idx])
                 _, preds = torch.max(outputs, 1)
 

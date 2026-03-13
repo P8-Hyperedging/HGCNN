@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
 
-class HGNN_conv(nn.Module):
+class QHGNN_conv(nn.Module):
     def __init__(self, in_ft, out_ft, bias=True):
-        super(HGNN_conv, self).__init__()
+        super(QHGNN_conv, self).__init__()
 
         self.weight = Parameter(torch.Tensor(in_ft, out_ft))
         if bias:
@@ -22,40 +22,45 @@ class HGNN_conv(nn.Module):
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
 
-    def forward(self, x: torch.Tensor, G: torch.Tensor):
+    def forward(self, x: torch.Tensor, G: torch.Tensor, Q: torch.Tensor):
+        # Multiply with learnable weight matrix
         x = x.matmul(self.weight)
         if self.bias is not None:
             x = x + self.bias
-        x = G.matmul(x)
+        # Multiply G by quality matrix Q to change the contribution of each hyperedge
+        Q_G = G * Q 
+        
+        # Multiply the feature matrix x with modified laplacian (aggregation)
+        x = Q_G.matmul(x)
         return x
 
-
-class HGNN_fc(nn.Module):
+    
+class QHGNN_fc(nn.Module):
     def __init__(self, in_ch, out_ch):
-        super(HGNN_fc, self).__init__()
+        super(QHGNN_fc, self).__init__()
         self.fc = nn.Linear(in_ch, out_ch)
 
     def forward(self, x):
         return self.fc(x)
 
 
-class HGNN_embedding(nn.Module):
+class QHGNN_embedding(nn.Module):
     def __init__(self, in_ch, n_hid, dropout=0.5):
-        super(HGNN_embedding, self).__init__()
+        super(QHGNN_embedding, self).__init__()
         self.dropout = dropout
-        self.hgc1 = HGNN_conv(in_ch, n_hid)
-        self.hgc2 = HGNN_conv(n_hid, n_hid)
+        self.hgc1 = QHGNN_conv(in_ch, n_hid)
+        self.hgc2 = QHGNN_conv(n_hid, n_hid)
 
-    def forward(self, x, G):
-        x = F.relu(self.hgc1(x, G))
+    def forward(self, x, G, Q):
+        x = F.relu(self.hgc1(x, G, Q))
         x = F.dropout(x, self.dropout)
-        x = F.relu(self.hgc2(x, G))
+        x = F.relu(self.hgc2(x, G, Q))
         return x
 
 
-class HGNN_classifier(nn.Module):
+class QHGNN_classifier(nn.Module):
     def __init__(self, n_hid, n_class):
-        super(HGNN_classifier, self).__init__()
+        super(QHGNN_classifier, self).__init__()
         self.fc1 = nn.Linear(n_hid, n_class)
 
     def forward(self, x):
