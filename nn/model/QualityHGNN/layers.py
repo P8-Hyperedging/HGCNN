@@ -9,7 +9,7 @@ class QHGNN_conv(nn.Module):
     def __init__(self, in_ft, out_ft, bias=True):
         super(QHGNN_conv, self).__init__()
 
-        self.weight = Parameter(torch.Tensor(in_ft, out_ft))
+        self.weight = Parameter(torch.Tensor(in_ft, out_ft)) # Create new feature matrix for hidden layer
         if bias:
             self.bias = Parameter(torch.Tensor(out_ft))
         else:
@@ -23,8 +23,8 @@ class QHGNN_conv(nn.Module):
             self.bias.data.uniform_(-stdv, stdv)
 
     def forward(self, x: torch.Tensor, G: torch.Tensor, Q: torch.Tensor):
-        # Multiply with learnable weight matrix
-        x = x.matmul(self.weight)
+        x = x.matmul(self.weight) 
+        # Create new feature matrix by multiplying with learnable weights.
         if self.bias is not None:
             x = x + self.bias
         # Multiply G by quality matrix Q to change the contribution of each hyperedge
