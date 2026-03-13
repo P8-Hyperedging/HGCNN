@@ -12,7 +12,6 @@ conda activate AllSet
 ## Install dependencies
 ```
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
-pip install torch-geometric
 pip install torch-scatter torch-sparse torch-cluster -f https://data.pyg.org/whl/torch-2.7.0+cu118.html
 pip install ipdb tqdm scipy matplotlib
 ```

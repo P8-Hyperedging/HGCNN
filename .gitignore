@@ -11,3 +11,4 @@ __pycache__/
 .vscode/
 /AllSetTransformer/data/
 /AllSetTransformer/hyperparameter_tunning/
+venv*

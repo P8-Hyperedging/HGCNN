@@ -31,41 +31,32 @@ def save_data_to_pickle(data, p2root = 'data/', file_name = None):
     return p2he_StarExpan
 
 class dataset_Hypergraph(InMemoryDataset):
-    def __init__(self, root = 'data/pyg_data/hypergraph_dataset_updated/', name = None, 
-                 p2raw = None,
+    def __init__(self, root = 'data/pyg_data/hypergraph_dataset_updated/', name = None,
                  train_percent = 0.01,
                  feature_noise = None,
                  transform=None, pre_transform=None):
-        
+
         existing_dataset = ['yelp']
         if name not in existing_dataset:
             raise ValueError(f'name of hypergraph dataset must be one of: {existing_dataset}')
         else:
             self.name = name
-        
+
         self.feature_noise = feature_noise
-        
+
         self._train_percent = train_percent
 
-        
-        if (p2raw is not None) and osp.isdir(p2raw):
-            self.p2raw = p2raw
-        elif p2raw is None:
-            self.p2raw = None
-        elif not osp.isdir(p2raw):
-            raise ValueError(f'path to raw hypergraph dataset "{p2raw}" does not exist!')
-        
         if not osp.isdir(root):
             os.makedirs(root)
-            
+
         self.root = root
         self.myraw_dir = osp.join(root, self.name, 'raw')
         self.myprocessed_dir = osp.join(root, self.name, 'processed')
-        
+
         super(dataset_Hypergraph, self).__init__(osp.join(root, name), transform, pre_transform)
-        
-        self.data, self.slices = torch.load(self.processed_paths[0], weights_only = False)
-        self.train_percent = float(self.data.train_percent)
+
+        self._data, self.slices = torch.load(self.processed_paths[0], weights_only = False)
+        self.train_percent = float(self._data.train_percent)
         
     @property
     def raw_file_names(self):
@@ -85,7 +76,7 @@ class dataset_Hypergraph(InMemoryDataset):
 
     @property
     def num_features(self):
-        return self.data.num_node_features
+        return self._data.num_node_features
 
 
     def download(self):
@@ -93,15 +84,10 @@ class dataset_Hypergraph(InMemoryDataset):
             p2f = osp.join(self.myraw_dir, name)
             if not osp.isfile(p2f):
                 # file not exist, so we create it and save it there.
-                print(p2f)
-                print(self.p2raw)
-                print(self.name)
                 if self.name == 'yelp':
-                    tmp_data = load_yelp_dataset(path = self.p2raw,
-                            dataset = self.name,
-                            train_percent = self._train_percent)
+                    tmp_data = load_yelp_dataset(train_percent = self._train_percent)
 
-                _ = save_data_to_pickle(tmp_data, 
+                _ = save_data_to_pickle(tmp_data,
                                           p2root = self.myraw_dir,
                                           file_name = self.raw_file_names[0])
             else:
