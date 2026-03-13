@@ -1,5 +1,7 @@
 import json
 import psycopg2
+import numpy as np
+from psycopg2 import sql
 from utils.config import config
 
 
@@ -34,7 +36,15 @@ class User:
     def __repr__(self):
         return f"User({self.user_id}, {self.name})"
 
-    
+
+class OpeningHours: 
+    def __init__(self, business_id, hours):
+        self.business_id = business_id
+        self.hours = np.array(hours)
+
+    def __repr__(self):
+        return f"OpeningHours({self.business_id}, {self.hours})"
+
 params = config()
 
 
@@ -86,6 +96,47 @@ def load_postgres_business_list_data(business_ids):
         conn.close()
     return businesses
 
+def load_postgres_business_list_opening_hours(business_ids):
+    businesses = []
+    conn = psycopg2.connect(**params)
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                WITH input_ids AS (
+                    SELECT UNNEST(%s) AS business_id
+                )
+                SELECT
+                    input_ids.business_id,
+                    MAX(CASE WHEN day = 'Monday'    THEN open  END) AS monday_open,
+                    MAX(CASE WHEN day = 'Monday'    THEN close END) AS monday_close,
+                    MAX(CASE WHEN day = 'Tuesday'   THEN open  END) AS tuesday_open,
+                    MAX(CASE WHEN day = 'Tuesday'   THEN close END) AS tuesday_close,
+                    MAX(CASE WHEN day = 'Wednesday' THEN open  END) AS wednesday_open,
+                    MAX(CASE WHEN day = 'Wednesday' THEN close END) AS wednesday_close,
+                    MAX(CASE WHEN day = 'Thursday'  THEN open  END) AS thursday_open,
+                    MAX(CASE WHEN day = 'Thursday'  THEN close END) AS thursday_close,
+                    MAX(CASE WHEN day = 'Friday'    THEN open  END) AS friday_open,
+                    MAX(CASE WHEN day = 'Friday'    THEN close END) AS friday_close,
+                    MAX(CASE WHEN day = 'Saturday'  THEN open  END) AS saturday_open,
+                    MAX(CASE WHEN day = 'Saturday'  THEN close END) AS saturday_close,
+                    MAX(CASE WHEN day = 'Sunday'    THEN open  END) AS sunday_open,
+                    MAX(CASE WHEN day = 'Sunday'    THEN close END) AS sunday_close
+                FROM input_ids
+                LEFT JOIN business_hours ON input_ids.business_id = business_hours.business_id
+                GROUP BY input_ids.business_id
+                ORDER BY input_ids.business_id
+                """,
+                (list(business_ids),)
+            )
+            for row in cur.fetchall():
+                business_id = row[0]
+                hours = row[1:15]
+                businesses.append(OpeningHours(business_id, hours))
+    finally:
+        conn.close()
+    return businesses
+
 def load_postgres_user_data(limit=200000):
     users = []
 
@@ -104,73 +155,23 @@ def load_postgres_user_data(limit=200000):
 
     return users
 
-def load_postgres_review_data(limit=100000, min_reviews_per_user=0):
+def load_postgres_review_data(db_table_name="az_user_reviews_over_4"):
     reviews = []
 
-    conn = psycopg2.connect(**params)
-    try:
+    with psycopg2.connect(**params) as conn:
         with conn.cursor() as cur:
-            if min_reviews_per_user > 0:
-                query = """
-                    WITH limited_reviews AS (
-                        SELECT 
-                            review_id, review.user_id, review.stars, 
-                            business.business_id, business.name, business.stars, 
-                            business.review_count, business.longitude, business.latitude, 
-                            yelp_user.user_id as yelp_user_id, yelp_user.name
-                        FROM review 
-                        JOIN business ON review.business_id = business.business_id 
-                        JOIN yelp_user ON review.user_id = yelp_user.user_id
-                        LIMIT %s
-                    ),
-                    user_counts AS (
-                        SELECT user_id, COUNT(*) as review_count_in_set
-                        FROM limited_reviews
-                        GROUP BY user_id
-                        HAVING COUNT(*) >= %s
-                    )
-                    SELECT * FROM limited_reviews
-                    WHERE user_id IN (SELECT user_id FROM user_counts)
-                """
-                query_params = (limit, min_reviews_per_user)
-            else:
-                query = """
-                    SELECT 
-                        review_id, review.user_id, review.stars, 
-                        business.business_id, business.name, business.stars, 
-                        business.review_count, business.longitude, business.latitude, 
-                        yelp_user.user_id as yelp_user_id, yelp_user.name
-                    FROM review 
-                    JOIN business ON review.business_id = business.business_id 
-                    JOIN yelp_user ON review.user_id = yelp_user.user_id
-                    LIMIT %s
-                """
-                query_params = (limit,)
-            
-            cur.execute(query, query_params)
-            for row in cur.fetchall():
-                business = Business(
-                    business_id=row[3],
-                    name=row[4],
-                    stars=row[5],
-                    review_count=row[6],
-                    longitude=row[7],
-                    latitude=row[8]
-                )
-                user = User(
-                    user_id=row[1],
-                    name=row[10]
-                )
+            query = sql.SQL(
+                "SELECT review_id, user_id, business_id FROM {}"
+            ).format(sql.Identifier(db_table_name))
 
-                r = Review(
-                    review_id=row[0],
-                    business=business,
-                    user=user,
-                    stars=row[2]
-                )
-                reviews.append(r)
-    finally:
-        conn.close()
+            cur.execute(query)
+
+            for review_id, user_id, business_id in cur:
+                reviews.append({
+                    "review_id": review_id,
+                    "user_id": user_id,
+                    "business_id": business_id
+                })
 
     return reviews
 
@@ -263,9 +264,9 @@ def sort_businesses_by_review_count(businesses, users, reviews):
     return sorted_businesses, review_count
 
 def group_reviews_by_user(reviews):
-    user_to_businesses = defaultdict(list)
+    user_to_businesses = defaultdict(set)
 
     for r in reviews:
-        user_to_businesses[r.user.user_id].append(r.business.business_id)
+        user_to_businesses[r['user_id']].add(r['business_id'])
 
     return user_to_businesses
