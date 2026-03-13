@@ -52,8 +52,6 @@ def get_opening_hours_vector(business_hours : OpeningHours):
         min_since_midnight = datetime.hour * 60 + datetime.minute
         oh_features[i] = min_since_midnight
 
-    if np.all(oh_features == -1):
-        print(f"Warning: Business {business_hours.business_id} has no opening hours data.")
     return oh_features
 
 def create_business_feature_matrix(businesses, opening_hours):
