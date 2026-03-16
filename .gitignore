@@ -9,5 +9,5 @@ __pycache__/
 *.egg-info/
 *.pyc
 .vscode/
-/AllSetTransformer/data/
-/AllSetTransformer/hyperparameter_tunning/
+nn/model/AllSetTransformer/data/
+nn/model/AllSetTransformer/hyperparameter_tunning/
