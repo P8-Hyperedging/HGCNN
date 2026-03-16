@@ -7,7 +7,7 @@ name = "HGCNN"
 version = "0.1.0"
 
 [tool.setuptools]
-packages = ["data", "model", "model.MoonLabHGNN", "utils"]
+packages = ["data", "model", "model.MoonLabHGNN", "model.QualityHGNN", "utils"]
 package-dir = {"" = "src"}
 
 [tool.pytest.ini_options]
