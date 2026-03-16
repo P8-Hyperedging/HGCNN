@@ -25,4 +25,4 @@ jobs:
 
       - name: Run tests
         run: |
-          cd nn && python -m pytest
+          python -m pytest
