@@ -25,7 +25,7 @@ class QHGNN_conv(nn.Module):
         '''
         self.weight.data.zero_()
         self.bias.data.zero_()
-        # We start with ones, so the model is more consistent for development.
+        # We start with ZEROS!!, so the model is more consistent for development.
 
     def forward(self, x: torch.Tensor, G: torch.Tensor, Q: torch.Tensor):
         x = x.matmul(self.weight) 

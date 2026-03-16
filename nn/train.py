@@ -42,12 +42,13 @@ print(f"H shape: {H.shape}")
 G = generate_G_from_H(H)
 print(f"G shape: {G.shape}")
 
+
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 fts = torch.Tensor(fm).to(device)
 lbls = torch.Tensor(lv).long().to(device)
 G = torch.Tensor(G).to(device)
-Q = torch.ones_like(G).to(device) # PLACEHOLDER, DOES NOTHING!
+Q = create_quality_matrix(G).to(device)
 idx_train = torch.Tensor(training_range).long().to(device)
 idx_test = torch.Tensor(testing_range).long().to(device)
 

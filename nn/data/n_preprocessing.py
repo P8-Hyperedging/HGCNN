@@ -2,6 +2,7 @@ import numpy as np
 from collections import defaultdict
 from data.data import group_reviews_by_user
 from data.data import OpeningHours
+import torch
 
 def build_hypergraph_incidence_matrix(reviews):
     """ Builds a hypergraph incidence matrix H. Rows/nodes are businesses, columns/hyperedges are users. 
@@ -65,8 +66,8 @@ def create_quality_matrix(G):
     # Idea 2: Users who review many businesses get lower aggregation contribution 
     # Idea 3: Use variance or other statistical measure of the ratings given by a user as a weight 
     # (users with more consistent ratings could be more reliable(or less!)).
-  
-    return G
+    
+    return torch.ones_like(G) # Placeholder, does nothing!
 
 def create_business_feature_matrix(businesses, opening_hours):
     nodes = len(businesses)
