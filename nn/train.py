@@ -1,3 +1,5 @@
+from model.QualityHGNN.QHGNN import QHGNN
+from model.QualityHGNN.train import train_model_QHGNN
 import torch
 import numpy as np
 import time
@@ -38,20 +40,23 @@ print(f"Training range: {0} - {split}, Testing range: {split+1} - {2*split}")
 print(f"H shape: {H.shape}")
 
 G = generate_G_from_H(H)
-
 print(f"G shape: {G.shape}")
+
 
 device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 fts = torch.Tensor(fm).to(device)
 lbls = torch.Tensor(lv).long().to(device)
 G = torch.Tensor(G).to(device)
+Q = create_quality_matrix(G).to(device)
 idx_train = torch.Tensor(training_range).long().to(device)
 idx_test = torch.Tensor(testing_range).long().to(device)
 
+
+
 n_class = int(lbls.max()) + 1
 
-model_ft = HGNN(
+model_ft = QHGNN(
     in_ch=fts.shape[1],
     n_class=n_class,
     n_hid=128,     
@@ -62,4 +67,4 @@ optimizer = optim.Adam(model_ft.parameters(), lr=0.001, weight_decay=5e-4)
 scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=[50, 100], gamma=0.5)
 criterion = torch.nn.CrossEntropyLoss()
 
-model_ft = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs=1000, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G)
+model_ft = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs=1000, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, Q=Q)
