@@ -2,6 +2,7 @@ import numpy as np
 from collections import defaultdict
 from data.data import group_reviews_by_user
 from data.data import OpeningHours
+import torch
 
 def build_hypergraph_incidence_matrix(reviews):
     """ Builds a hypergraph incidence matrix H. Rows/nodes are businesses, columns/hyperedges are users. 
@@ -53,6 +54,18 @@ def get_opening_hours_vector(business_hours : OpeningHours):
         oh_features[i] = min_since_midnight
 
     return oh_features
+
+# Should probably use businesses and reviews as parameters
+def create_quality_matrix(G):
+    # Add rules for determining quality of hyperedges here.
+    # Idea 1: Businesses with low review count get lower aggregation contribution (lower weight).
+    # (this is probably already the case because of the laplacian normalization, 
+    # but we could also explicitly add it as a weight, idk its a blackbox).
+    # Idea 2: Users who review many businesses get lower aggregation contribution 
+    # Idea 3: Use variance or other statistical measure of the ratings given by a user as a weight 
+    # (users with more consistent ratings could be more reliable(or less!)).
+    
+    return torch.ones_like(G) # Placeholder, does nothing!
 
 def create_business_feature_matrix(businesses, opening_hours):
     nodes = len(businesses)
