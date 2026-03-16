@@ -16,4 +16,11 @@ pythonpath = ["src"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+# norecursedirs tells pytest which directories to skip entirely during test
+# collection. pytest will not descend into these directories when searching
+# for test files, which avoids accidentally picking up third-party or
+# version-control files as tests and keeps discovery fast.
+#   .git        – git internals; never contains project tests
+#   venv_py313  – local Python 3.13 virtual environment; contains installed
+#                 packages that should not be scanned for tests
 norecursedirs = [".git", "venv_py313"]
