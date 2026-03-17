@@ -19,8 +19,7 @@ from layers import *
 from models import *
 from preprocessing import *
 
-from convert_datasets_to_pygDataset import dataset_Hypergraph
-
+from load_other_datasets import load_yelp_dataset
 
 
 
@@ -153,16 +152,11 @@ if __name__ == '__main__':
     )
     
     if args.dname in existing_dataset:
-        dname = args.dname
         f_noise = args.feature_noise
-        if dname in ['yelp']: 
-            p2raw = 'data/AllSet_all_raw_data/yelp/'
-
-
-        dataset = dataset_Hypergraph(name=dname,root = 'data/pyg_data/hypergraph_dataset_updated/', p2raw = p2raw)
-        data = dataset.data
-        args.num_features = dataset.num_features
-        args.num_classes = dataset.num_classes
+        # Load from database directly instead of using the wrapper class that Allset used.
+        data= load_yelp_dataset(train_percent = args.train_prop)
+        args.num_features = data.num_node_features
+        args.num_classes = len(data.y.unique())
         if args.dname in ['yelp']:
             #         Shift the y label to start with 0
             args.num_classes = len(data.y.unique())

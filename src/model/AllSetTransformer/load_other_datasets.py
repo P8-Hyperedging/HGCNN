@@ -4,17 +4,17 @@ import torch
 
 import os.path as osp
 import numpy as np
-import pandas as pd
+# import pandas as pd
 import scipy.sparse as sp
 
 
 from torch_geometric.data import Data
 from torch_sparse import coalesce
 # from randomperm_code import random_planetoid_splits
-from sklearn.feature_extraction.text import CountVectorizer
+# from sklearn.feature_extraction.text import CountVectorizer
 
-import sys
-sys.path.append("../..") #Code smell
+# import sys
+# sys.path.append("../..") #Code smell
 from data.data import load_postgres_review_data, group_reviews_by_user, load_postgres_business_list_data
 
 def load_yelp_dataset(train_percent = 0.025):
