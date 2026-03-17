@@ -1,4 +1,4 @@
-# Digestible README for ALLSETS
+# Depricated README for ALLSETS
 
 Ran it in bash, using miniconda3 ([Miniconda3 Link](https://www.anaconda.com/docs/getting-started/miniconda/install#windows-powershell))
 ## Setting up environment (This should be changed to venv in the future)

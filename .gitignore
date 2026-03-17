@@ -12,3 +12,4 @@ __pycache__/
 src/model/AllSetTransformer/data/
 src/model/AllSetTransformer/hyperparameter_tunning/
 src/model/AllSetTransformer/pyg_data/
+/hyperparameter_tunning

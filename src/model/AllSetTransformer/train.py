@@ -17,9 +17,8 @@ from tqdm import tqdm
 
 from layers import *
 from models import *
-from preprocessing import *
 
-from load_other_datasets import load_yelp_dataset
+from data.AllSetTransformer_preprocessing import *
 
 
 
@@ -154,7 +153,7 @@ if __name__ == '__main__':
     if args.dname in existing_dataset:
         f_noise = args.feature_noise
         # Load from database directly instead of using the wrapper class that Allset used.
-        data= load_yelp_dataset(train_percent = args.train_prop)
+        data = load_yelp_dataset(train_percent = args.train_prop)
         args.num_features = data.num_node_features
         args.num_classes = len(data.y.unique())
         if args.dname in ['yelp']:

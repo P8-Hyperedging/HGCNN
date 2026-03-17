@@ -1,13 +1,74 @@
 '''This whole file is adapted from https://github.com/jianhao2016/AllSet'''
- 
-import torch
 
+import torch
 import numpy as np
 
-from collections import defaultdict, Counter
-from itertools import combinations
-from torch_scatter import scatter_add, scatter
+from torch_geometric.data import Data
+from torch_sparse import coalesce
+from collections import Counter
+from torch_scatter import scatter_add
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
+
+from data.data import load_postgres_review_data, group_reviews_by_user, load_postgres_business_list_data
+
+def load_yelp_dataset(train_percent = 0.025):
+    '''
+    Load yelp dataset from database using data.py functionality.
+    Then build hypergraph where nodes are business and hyperedges are user reviews.
+    '''
+    # Utilize data.py to load review data
+    reviews = load_postgres_review_data()
+
+    business_ids = set(r['business_id'] for r in reviews)
+    businesses = load_postgres_business_list_data(list(business_ids))
+
+    business_to_id = {b.business_id: id for id, b in enumerate(businesses)}
+    num_nodes = len(businesses)
+
+    feature_list = []
+    for b in businesses:
+        feature_list.append([
+            b.latitude, 
+            b.longitude,
+            b.stars,
+            b.review_count])
+        
+    features = np.array(feature_list)
+
+
+    labels = np.array([b.stars for b in businesses])
+
+    user_to_business = group_reviews_by_user(reviews)
+
+    node_list = []
+    edge_list = []
+    for hyperedge_id, (user_id, buseness_ids) in enumerate(user_to_business.items()):
+        for business_id in buseness_ids:
+            if business_id in business_to_id:
+                node_id = business_to_id[business_id]
+                node_list.append(node_id)
+                edge_list.append(hyperedge_id + num_nodes)
+
+    edge_index = np.vstack([node_list, edge_list])
+    edge_index = np.hstack([edge_index, edge_index[::-1, :]])
+
+    features = torch.FloatTensor(features)
+    labels = torch.LongTensor(labels)
+    edge_index = torch.LongTensor(edge_index)
+
+    data = Data(x=features, edge_index=edge_index, y=labels)
+                
+    total_num_node_id_he_id = edge_index.max() + 1
+    data.edge_index, data.edge_attr = coalesce(
+            data.edge_index, 
+            None, 
+            total_num_node_id_he_id, 
+            total_num_node_id_he_id)
+
+    data.n_x = num_nodes
+    data.train_percent = train_percent
+    data.num_hyperedges = len(user_to_business)
+    return data
 
 def ExtractV2E(data):
     # Assume edge_index = [V|E;E|V]
@@ -115,10 +176,6 @@ def expand_edge_index(data, edge_th=0):
         num_edges = data.num_hyperedges
 
     expanded_n2he_index = []
-#     n2he_with_same_heid = []
-
-#     expanded_he2n_index = []
-#     he2n_with_same_heid = []
 
     # start edge_id from the largest node_id + 1.
     cur_he_id = num_nodes
@@ -190,22 +247,7 @@ def expand_edge_index(data, edge_th=0):
         expanded_n2he_index.append(new_n2he)
 
 
-#         # ---------------------------
-#         # create he2n from mapping.
-#         new_he2n = np.array([[he_id, node_id] for node_id, he_id in tmp_node_id_2_he_id_dict.items()])
-#         new_he2n = torch.from_numpy(new_he2n.T).to(device = edge_index.device)
-#         expanded_he2n_index.append(new_he2n)
-
-#         # create he2n with same heid as input edge_index.
-#         new_he2n_same_heid = torch.zeros_like(new_he2n, device = edge_index.device)
-#         new_he2n_same_heid[1] = new_he2n[1]
-#         new_he2n_same_heid[0] = torch.ones_like(new_he2n[0]) * he_idx
-#         he2n_with_same_heid.append(new_he2n_same_heid)
-
     new_edge_index = torch.cat(expanded_n2he_index, dim=1)
-#     new_he2n_index = torch.cat(expanded_he2n_index, dim = 1)
-#     new_edge_index = torch.cat([new_n2he_index, new_he2n_index], dim = 1)
-    # sort the new_edge_index by first row. (node_ids)
     new_order = new_edge_index[0].argsort()
     data.edge_index = new_edge_index[:, new_order]
 
@@ -242,7 +284,6 @@ def rand_train_test_idx(label, train_prop=.5, valid_prop=.25, ignore_negative=Tr
                      'valid': valid_idx,
                      'test': test_idx}
     else:
-        #         ipdb.set_trace()
         indices = []
         for i in range(label.max()+1):
             index = torch.where((label == i))[0].view(-1)
