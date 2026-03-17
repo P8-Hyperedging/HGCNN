@@ -1,4 +1,5 @@
-from flask import Flask
+from flask import Flask, jsonify
+from parameters import get_parameters, serialize
 
 app = Flask(__name__)
 
@@ -10,6 +11,10 @@ def home():
 @app.route("/about")
 def about():
     return "This is the about page."
+
+@app.route("/params")
+def params():
+    return jsonify(serialize(get_parameters()))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
