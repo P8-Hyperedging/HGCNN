@@ -3,7 +3,7 @@
 # Date: November 2018
 
 import numpy as np
-
+from scipy.sparse import diags, issparse, csr_matrix
 
 def Eu_dis(x):
     """
@@ -99,28 +99,29 @@ def _generate_G_from_H(H, variable_weight=False):
     :param variable_weight: whether the weight of hyperedge is variable
     :return: G
     """
-    H = np.array(H)
-    n_edge = H.shape[1]
-    # the weight of the hyperedge
-    W = np.ones(n_edge)
-    # the degree of the node
-    DV = np.sum(H * W, axis=1)
-    # the degree of the hyperedge
-    DE = np.sum(H, axis=0)
+    if not issparse(H):
+        H = csr_matrix(H)
 
-    invDE = np.diag(np.power(DE, -1))
-    DV2 = np.diag(np.power(DV, -0.5))
-    W = np.diag(W)
-    H = np.asarray(H)
+    n_edge = H.shape[1]
+    W = np.ones(n_edge)
+    DV = np.asarray(H.dot(W)).flatten()
+    DE = np.asarray(H.sum(axis=0)).flatten()
+
+    invDE  = diags(np.power(DE, -1))
+    DV2    = diags(np.power(DV, -0.5))
+    W_diag = diags(W)
+
     HT = H.T
 
     if variable_weight:
-        DV2_H = DV2 @ H
-        invDE_HT_DV2 = invDE @ HT @ DV2
-        return DV2_H, W, invDE_HT_DV2
+        DV2_H = DV2.dot(H)
+        invDE_HT_DV2 = invDE.dot(HT).dot(DV2)
+        result = (DV2_H.toarray(), W_diag.toarray(), invDE_HT_DV2.toarray())
     else:
-        G = DV2 @ H @ W @ invDE @ HT @ DV2
-        return G
+        G = DV2.dot(H).dot(W_diag).dot(invDE).dot(HT).dot(DV2)
+        result = G.toarray()
+
+    return result
 
 
 def construct_H_with_KNN_from_distance(dis_mat, k_neig, is_probH=True, m_prob=1):
