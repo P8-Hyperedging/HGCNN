@@ -62,8 +62,16 @@ def create_quality_matrix(G):
     # (this is probably already the case because of the laplacian normalization, 
     # but we could also explicitly add it as a weight, idk its a blackbox).
     # Idea 2: Users who review many businesses get lower aggregation contribution 
+
+
     # Idea 3: Use variance or other statistical measure of the ratings given by a user as a weight 
     # (users with more consistent ratings could be more reliable(or less!)).
+
+    # It might be a good idea for the sake of comparison, to multiply the quality matrix with the laplacian for the other models.
+    # This will show whether using it in the model or preprocessing makes a difference, 
+    # and also make the comparisons with the other models more fair, since they will also be using the quality matrix.
+
+
     
     return torch.ones_like(G) # Placeholder, does nothing!
 
