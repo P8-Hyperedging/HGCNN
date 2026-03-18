@@ -260,10 +260,9 @@ if __name__ == '__main__':
             header = 'Method,Best_Val,Best_Test,Num_Params,Total_Runtime(s)\n'
             write_obj.write(header)
         cur_line = f'{args.method}_{args.lr}_{args.wd}_{args.heads}'
-        # cur_line += f',{best_val.mean():.3f} +- {best_val.std():.3f}'   # Don't currently need avg
-        # cur_line += f',{best_test.mean():.3f} +- {best_test.std():.3f}' # kept for future if needed
-        cur_line += f',{num_params}' #, {avg_time:.2f}s, {std_time:.2f}s' 
-        # cur_line += f',{avg_time//60}min{(avg_time % 60):.2f}s'
+        cur_line += f',{best_val.item():.3f}'   
+        cur_line += f',{best_test.item():.3f}' 
+        cur_line += f',{num_params}'
         cur_line += f',{total_runtime:.2f}s'
         cur_line += f'\n'
         write_obj.write(cur_line)
