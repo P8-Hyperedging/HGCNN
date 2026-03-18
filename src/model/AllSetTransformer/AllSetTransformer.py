@@ -36,8 +36,6 @@ class SetGNN(nn.Module):
         self.bnV2Es = nn.ModuleList()
         self.bnE2Vs = nn.ModuleList()
 
-        if self.LearnMask:
-            self.Importance = Parameter(torch.ones(norm.size()))
 
         self.V2EConvs.append(HalfNLHconv(in_dim=args.num_features,
                                             hid_dim=args.MLP_hidden,
@@ -80,30 +78,14 @@ class SetGNN(nn.Module):
                                                 heads=args.heads,
                                                 attention=args.PMA))
             self.bnE2Vs.append(nn.BatchNorm1d(args.MLP_hidden))
-        if self.GPR:
-            self.MLP = MLP(in_channels=args.num_features,
-                            hidden_channels=args.MLP_hidden,
-                            out_channels=args.MLP_hidden,
-                            num_layers=args.MLP_num_layers,
-                            dropout=self.dropout,
-                            Normalization=self.NormLayer,
-                            InputNorm=False)
-            self.GPRweights = Linear(self.All_num_layers+1, 1, bias=False)
-            self.classifier = MLP(in_channels=args.MLP_hidden,
-                                    hidden_channels=args.Classifier_hidden,
-                                    out_channels=args.num_classes,
-                                    num_layers=args.Classifier_num_layers,
-                                    dropout=self.dropout,
-                                    Normalization=self.NormLayer,
-                                    InputNorm=False)
-        else:
-            self.classifier = MLP(in_channels=args.MLP_hidden,
-                                    hidden_channels=args.Classifier_hidden,
-                                    out_channels=args.num_classes,
-                                    num_layers=args.Classifier_num_layers,
-                                    dropout=self.dropout,
-                                    Normalization=self.NormLayer,
-                                    InputNorm=False)
+       
+        self.classifier = MLP(in_channels=args.MLP_hidden,
+                                hidden_channels=args.Classifier_hidden,
+                                out_channels=args.num_classes,
+                                num_layers=args.Classifier_num_layers,
+                                dropout=self.dropout,
+                                Normalization=self.NormLayer,
+                                InputNorm=False)
                 
     
     def reset_parameters(self):
@@ -144,27 +126,13 @@ class SetGNN(nn.Module):
         edge_index[1] -= cidx  # make sure we do not waste memory
         reversed_edge_index = torch.stack(
             [edge_index[1], edge_index[0]], dim=0)
-        if self.GPR:
-            xs = []
-            xs.append(F.relu(self.MLP(x)))
-            for i, _ in enumerate(self.V2EConvs):
-                x = F.relu(self.V2EConvs[i](x, edge_index, norm, self.aggr))
-                x = F.dropout(x, p=self.dropout, training=self.training)
-                x = self.E2VConvs[i](x, reversed_edge_index, norm, self.aggr)
-                x = F.relu(x)
-                xs.append(x)
-                x = F.dropout(x, p=self.dropout, training=self.training)
-            x = torch.stack(xs, dim=-1)
-            x = self.GPRweights(x).squeeze()
-            x = self.classifier(x)
-        else:
-            x = F.dropout(x, p=0.2, training=self.training) # Input dropout
-            for i, _ in enumerate(self.V2EConvs):
-                x = F.relu(self.V2EConvs[i](x, edge_index, norm, self.aggr))
-                x = F.dropout(x, p=self.dropout, training=self.training)
-                x = F.relu(self.E2VConvs[i](
-                    x, reversed_edge_index, norm, self.aggr))
-                x = F.dropout(x, p=self.dropout, training=self.training)
-            x = self.classifier(x)
+        x = F.dropout(x, p=0.2, training=self.training) # Input dropout
+        for i, _ in enumerate(self.V2EConvs):
+            x = F.relu(self.V2EConvs[i](x, edge_index, norm, self.aggr))
+            x = F.dropout(x, p=self.dropout, training=self.training)
+            x = F.relu(self.E2VConvs[i](
+                x, reversed_edge_index, norm, self.aggr))
+            x = F.dropout(x, p=self.dropout, training=self.training)
+        x = self.classifier(x)
 
         return x
