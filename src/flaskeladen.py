@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-from parameters import get_parameters, serialize
+from parameters import InputType, SelectParameter, get_allset_parameters, get_parameters, serialize
 
 app = Flask(__name__)
 
@@ -12,9 +12,17 @@ def home():
 def about():
     return "This is the about page."
 
-@app.route("/params")
-def params():
-    return jsonify(serialize(get_parameters()))
+@app.route("/params/<model>")
+def params(model: str):
+    match model:
+        case "allset":
+            return jsonify(serialize(get_allset_parameters()))
+        case _:
+            return jsonify(serialize(get_parameters()))
+
+@app.route("/models")
+def models():
+    return jsonify(SelectParameter(name="Select Model", options=["allset","moonlab", "qhgnn"], type=InputType.Select))
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

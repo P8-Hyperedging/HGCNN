@@ -1,11 +1,11 @@
 from dataclasses import dataclass, asdict
 from enum import Enum
-from typing import Union, List
 
 class InputType(str, Enum):
     RANGE = "range"
     INPUT = "input"
     TOGGLE = "toggle"
+    Select = "select"
 
 @dataclass
 class BaseParameter:
@@ -16,6 +16,7 @@ class BaseParameter:
 class RangeParameter(BaseParameter):
     min: float
     max: float
+    step: float
     default: float
 
 @dataclass
@@ -28,16 +29,30 @@ class InputParameter(BaseParameter):
 class ToggleParameter(BaseParameter):
     default: bool
 
-Parameter = Union[RangeParameter, InputParameter, ToggleParameter]
+@dataclass
+class SelectParameter(BaseParameter):
+    options: list[str]
 
-def get_parameters() -> List[Parameter]:
+Parameter = RangeParameter | InputParameter| ToggleParameter | SelectParameter
+
+def get_parameters() -> list[Parameter]:
     return [
-        RangeParameter(name="param1", min=1, max=5, default=2, type=InputType.RANGE),
-        RangeParameter(name="param2", min=1, max=5, default=3, type=InputType.RANGE),
+        RangeParameter(name="param1", min=1, max=5, step=0.5, default=2, type=InputType.RANGE),
+        RangeParameter(name="param2", min=1, max=5, step=0.5, default=3, type=InputType.RANGE),
         InputParameter(name="param3", min=1, max=500, default=200, type=InputType.INPUT),
         ToggleParameter(name="param4", default=True, type=InputType.TOGGLE),
     ]
 
+def get_allset_parameters() -> list[Parameter]:
+    return [
+        InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
+        InputParameter(name="Epoch", min=0, max=10000, default=500, type=InputType.INPUT),
+        InputParameter(name="Hidden layers", min=0, max=256, default=64, type=InputType.INPUT),
+        InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="Validation proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
+        InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
+    ]
+
 # Serialize to JSON-ready dict
-def serialize(params: List[Parameter]):
+def serialize(params: list[Parameter]):
     return [asdict(p) for p in params]
