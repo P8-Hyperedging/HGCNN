@@ -1,6 +1,6 @@
 import numpy as np
 from collections import defaultdict
-from data.data import group_reviews_by_user
+from data.data import group_reviews_by_user, Business
 from data.data import OpeningHours
 import torch
 
@@ -67,20 +67,22 @@ def create_quality_matrix(G):
     
     return torch.ones_like(G) # Placeholder, does nothing!
 
-def create_business_feature_matrix(businesses, opening_hours):
+def create_business_feature_matrix(businesses: list[Business], opening_hours):
     nodes = len(businesses)
-    fm = np.zeros((nodes, 17)) # Magic number = number of features per node
+    num_categories = len(businesses[0].categories)
+    total_features = 17 + num_categories
+    fm = np.zeros((nodes, total_features))
     print(f"Number of businesses: {len(businesses)}")
     print(f"Number of opening_hours: {len(opening_hours)}")
     
     for i in range(nodes):
         b = businesses[i]
         oh = opening_hours[i]
-        
         fm[i, 0] = b.review_count
         fm[i, 1] = b.longitude
         fm[i, 2] = b.latitude 
         fm[i, 3:17] = get_opening_hours_vector(oh)
+        fm[i, 17:17+len(b.categories)] = b.categories
     return fm
 
 # All nodes need to have SOME label for the KNN pre-processing from the paper
