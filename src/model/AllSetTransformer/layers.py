@@ -11,7 +11,7 @@ from torch.nn import Linear
 from torch.nn import Parameter
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.utils import softmax
-from torch_scatter import scatter_add, scatter
+from torch_scatter import scatter
 from torch_geometric.typing import Adj, Size, OptTensor, OptPairTensor
 from typing import Union
 from torch_sparse import SparseTensor
@@ -35,7 +35,6 @@ class PMA(MessagePassing):
     def __init__(self, in_channels, hid_dim,
                  out_channels, num_layers, heads=1, concat=True,
                  negative_slope=0.2, dropout=0.0, bias=False, **kwargs):
-        #         kwargs.setdefault('aggr', 'add')
         super(PMA, self).__init__(node_dim=0, **kwargs)
 
         self.in_channels = in_channels
@@ -64,13 +63,7 @@ class PMA(MessagePassing):
                        dropout=.0, Normalization='None',)
         self.ln0 = nn.LayerNorm(self.heads*self.hidden)
         self.ln1 = nn.LayerNorm(self.heads*self.hidden)
-#         if bias and concat:
-#             self.bias = Parameter(torch.Tensor(heads * out_channels))
-#         elif bias and not concat:
-#             self.bias = Parameter(torch.Tensor(out_channels))
-#         else:
 
-#         Always no bias! (For now)
         self.register_parameter('bias', None)
 
         self._alpha = None
@@ -78,15 +71,13 @@ class PMA(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
-        #         glorot(self.lin_l.weight)
         glorot(self.lin_K.weight)
         glorot(self.lin_V.weight)
         self.rFF.reset_parameters()
         self.ln0.reset_parameters()
         self.ln1.reset_parameters()
-#         glorot(self.att_l)
         nn.init.xavier_uniform_(self.att_r)
-#         zeros(self.bias)
+
 
     def forward(self, x, edge_index: Adj,
                 size: Size = None, return_attention_weights=None):
@@ -112,20 +103,7 @@ class PMA(MessagePassing):
             x_K = self.lin_K(x).view(-1, H, C)
             x_V = self.lin_V(x).view(-1, H, C)
             alpha_r = (x_K * self.att_r).sum(dim=-1)
-#         else:
-#             x_l, x_r = x[0], x[1]
-#             assert x[0].dim() == 2, 'Static graphs not supported in `GATConv`.'
-#             x_l = self.lin_l(x_l).view(-1, H, C)
-#             alpha_l = (x_l * self.att_l).sum(dim=-1)
-#             if x_r is not None:
-#                 x_r = self.lin_r(x_r).view(-1, H, C)
-#                 alpha_r = (x_r * self.att_r).sum(dim=-1)
 
-#         assert x_l is not None
-#         assert alpha_l is not None
-
-        # propagate_type: (x: OptPairTensor, alpha: OptPairTensor)
-#         ipdb.set_trace()
         out = self.propagate(edge_index, x=x_V,
                              alpha=alpha_r)
 
@@ -152,7 +130,6 @@ class PMA(MessagePassing):
     def message(self, x_j, alpha_j,
                 index, ptr,
                 size_j):
-        #         ipdb.set_trace()
         alpha = alpha_j
         alpha = F.leaky_relu(alpha, self.negative_slope)
         alpha = softmax(alpha, index, ptr, index.max()+1)
@@ -172,7 +149,6 @@ class PMA(MessagePassing):
         that support "add", "mean" and "max" operations as specified in
         :meth:`__init__` by the :obj:`aggr` argument.
         """
-#         ipdb.set_trace()
         if aggr is None:
             aggr = self.aggr
         return scatter(inputs, index, dim=self.node_dim, reduce=aggr)
@@ -192,62 +168,20 @@ class MLP(nn.Module):
         self.lins = nn.ModuleList()
         self.normalizations = nn.ModuleList()
         self.InputNorm = InputNorm
-
-        assert Normalization in ['bn', 'ln', 'None']
-        if Normalization == 'bn':
-            if num_layers == 1:
-                # just linear layer i.e. logistic regression
-                if InputNorm:
-                    self.normalizations.append(nn.BatchNorm1d(in_channels))
-                else:
-                    self.normalizations.append(nn.Identity())
-                self.lins.append(nn.Linear(in_channels, out_channels))
-            else:
-                if InputNorm:
-                    self.normalizations.append(nn.BatchNorm1d(in_channels))
-                else:
-                    self.normalizations.append(nn.Identity())
-                self.lins.append(nn.Linear(in_channels, hidden_channels))
-                self.normalizations.append(nn.BatchNorm1d(hidden_channels))
-                for _ in range(num_layers - 2):
-                    self.lins.append(
-                        nn.Linear(hidden_channels, hidden_channels))
-                    self.normalizations.append(nn.BatchNorm1d(hidden_channels))
-                self.lins.append(nn.Linear(hidden_channels, out_channels))
-        elif Normalization == 'ln':
-            if num_layers == 1:
-                # just linear layer i.e. logistic regression
-                if InputNorm:
-                    self.normalizations.append(nn.LayerNorm(in_channels))
-                else:
-                    self.normalizations.append(nn.Identity())
-                self.lins.append(nn.Linear(in_channels, out_channels))
-            else:
-                if InputNorm:
-                    self.normalizations.append(nn.LayerNorm(in_channels))
-                else:
-                    self.normalizations.append(nn.Identity())
-                self.lins.append(nn.Linear(in_channels, hidden_channels))
-                self.normalizations.append(nn.LayerNorm(hidden_channels))
-                for _ in range(num_layers - 2):
-                    self.lins.append(
-                        nn.Linear(hidden_channels, hidden_channels))
-                    self.normalizations.append(nn.LayerNorm(hidden_channels))
-                self.lins.append(nn.Linear(hidden_channels, out_channels))
+        
+        if num_layers == 1:
+            # just linear layer i.e. logistic regression
+            self.normalizations.append(nn.Identity())
+            self.lins.append(nn.Linear(in_channels, out_channels))
         else:
-            if num_layers == 1:
-                # just linear layer i.e. logistic regression
+            self.normalizations.append(nn.Identity())
+            self.lins.append(nn.Linear(in_channels, hidden_channels))
+            self.normalizations.append(nn.Identity())
+            for _ in range(num_layers - 2):
+                self.lins.append(
+                    nn.Linear(hidden_channels, hidden_channels))
                 self.normalizations.append(nn.Identity())
-                self.lins.append(nn.Linear(in_channels, out_channels))
-            else:
-                self.normalizations.append(nn.Identity())
-                self.lins.append(nn.Linear(in_channels, hidden_channels))
-                self.normalizations.append(nn.Identity())
-                for _ in range(num_layers - 2):
-                    self.lins.append(
-                        nn.Linear(hidden_channels, hidden_channels))
-                    self.normalizations.append(nn.Identity())
-                self.lins.append(nn.Linear(hidden_channels, out_channels))
+            self.lins.append(nn.Linear(hidden_channels, out_channels))
 
         self.dropout = dropout
 

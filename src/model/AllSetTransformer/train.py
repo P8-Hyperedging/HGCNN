@@ -8,15 +8,13 @@ import argparse
 
 import numpy as np
 import os.path as osp
-import scipy.sparse as sp
 import torch.nn as nn
 import torch.nn.functional as F
-import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
 from layers import *
-from models import *
+from AllSetTransformer import *
 
 from data.AllSetTransformer_preprocessing import *
 
@@ -173,8 +171,7 @@ if __name__ == '__main__':
     if args.exclude_self:
         data = expand_edge_index(data)
 
-    # Compute deg normalization: option in ['all_one','deg_half_sym'] (use args.normtype)
-    # data.norm = torch.ones_like(data.edge_index[0])
+
     data = norm_contruction(data, option=args.normtype)
     
     
@@ -191,8 +188,7 @@ if __name__ == '__main__':
     num_params = count_parameters(model)
 
     model.train()
-    # print('MODEL:', model)
-    
+
     split_idx_lst = []
     for run in range(args.runs):
         split_idx = rand_train_test_idx(
@@ -239,9 +235,6 @@ if __name__ == '__main__':
 
         total_end_time = time.time()
         total_runtime = total_end_time - total_start_time
-
-    
-        # logger.print_statistics(run)
     
 
     avg_time, std_time = np.mean(runtime_list), np.std(runtime_list)
