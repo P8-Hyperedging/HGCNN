@@ -42,9 +42,9 @@ def test_create_business_feature_matrix():
     from data.data import Business, OpeningHours
     
     businesses = [
-        Business("b1", "Business 1", 4.0, 100, -122.0, 37.0),
-        Business("b2", "Business 2", 3.5, 50, -122.5, 37.5),
-        Business("b3", "Business 3", 5.0, 200, -123.0, 38.0)
+        Business("b1", [0,1,0], "Business 1", 4.0, 100, -122.0, 37.0),
+        Business("b2", [1,0,0], "Business 2", 3.5, 50, -122.5, 37.5),
+        Business("b3", [1,0,1], "Business 3", 5.0, 200, -123.0, 38.0)
     ]
 
     hours = [
@@ -60,13 +60,13 @@ def test_create_business_feature_matrix():
     fm = create_business_feature_matrix(businesses, hours)
     print(f"Feature matrix:\n{fm}")
     
-    assert fm.shape == (3, 17), "Feature matrix should have shape (3 businesses, 17 features)"
+    assert fm.shape == (3, 20), "Feature matrix should have shape (3 businesses, 20 features)"
     assert fm[0, 0] == 100, "First business review count should be 100"
     assert fm[1, 1] == -122.5, "Second business longitude should be -122.5"
     assert fm[2, 2] == 38.0, "Third business latitude should be 38.0"
     assert fm[0, 3] == 9*60, "First business Monday opening should be 540 minutes"
     assert fm[1, 5] == 10*60, "Second business Tuesday opening should be 600 minutes"
-    assert np.all(fm[2, 3:] == -1), "Third business should have -1 for all opening hours features"
+    assert np.all(fm[2, 3:17] == -1), "Third business should have -1 for all opening hours features"
 
 def test_hypergraph_properties():
     """ Testing the structure and properties of the incidence matrix H. """
