@@ -1,11 +1,15 @@
 /frontend/.vscode
 /.idea
 .DS_Store
-/nn/data/yelp_dataset
+/src/data/yelp_dataset
 .venv/
-venv/
+venv*/
 __pycache__/
 .pytest_cache/
 *.egg-info/
 *.pyc
 .vscode/
+src/model/AllSetTransformer/data/
+src/model/AllSetTransformer/hyperparameter_tunning/
+src/model/AllSetTransformer/pyg_data/
+/hyperparameter_tunning
