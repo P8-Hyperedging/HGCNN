@@ -52,8 +52,6 @@ Q = create_quality_matrix(G).to(device)
 idx_train = torch.Tensor(training_range).long().to(device)
 idx_test = torch.Tensor(testing_range).long().to(device)
 
-
-
 n_class = int(lbls.max()) + 1
 
 model_ft = QHGNN(
