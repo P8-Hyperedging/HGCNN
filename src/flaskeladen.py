@@ -111,14 +111,8 @@ def train_model_async(model: str, data: dict, job_id: str):
             case "moonlab":
                 pass
 
-        training_jobs[job_id]["status"] = "completed"
-        training_jobs[job_id]["message"] = f"{model} model training completed successfully!"
-        training_jobs[job_id]["completed_at"] = datetime.now().isoformat()
     except Exception as e:
-        training_jobs[job_id]["status"] = "failed"
-        training_jobs[job_id]["message"] = f"Training failed: {str(e)}"
-        training_jobs[job_id]["error"] = str(e)
-        training_jobs[job_id]["completed_at"] = datetime.now().isoformat()
+        print("Oops")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
