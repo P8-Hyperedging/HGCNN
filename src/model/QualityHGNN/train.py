@@ -3,6 +3,70 @@ import time
 import copy
 import torch
 
+import torch
+from model.QualityHGNN.QHGNN import QHGNN
+from torch import optim, split
+
+from data.data import *
+from data.n_preprocessing import *
+from utils.utils import *
+
+
+class Train_QHGNN:
+    def __init__(self):
+        self.reviews = load_postgres_review_data()
+
+    def train(self, num_epochs=1000, lr=0.001, hidden_layer_size=128, train_proportion=0.8, dropout=0.5, weight_decay=5e-4, gamma=0.5, milestones_input="50,100"):
+        H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(self.reviews)
+        hours = load_postgres_business_list_opening_hours(business_ids)
+        businesses = load_postgres_business_list_data(business_ids)
+
+        fm = create_business_feature_matrix(businesses, hours)
+        print(f"Feature matrix shape: {fm.shape}")
+
+        lv = create_label_vector(businesses)
+
+        n = len(businesses)
+        split = int(n * train_proportion)
+
+        training_range = np.arange(0, split)
+        testing_range = np.arange(split, n)
+
+        print(f"Training range: {0} - {split}, Testing range: {split+1} - {2*split}")
+
+        print(f"H shape: {H.shape}")
+
+        G = generate_G_from_H(H)
+        print(f"G shape: {G.shape}")
+
+
+        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+        fts = torch.Tensor(fm).to(device)
+        lbls = torch.Tensor(lv).long().to(device)
+        G = torch.Tensor(G).to(device)
+        Q = create_quality_matrix(G).to(device)
+        idx_train = torch.Tensor(training_range).long().to(device)
+        idx_test = torch.Tensor(testing_range).long().to(device)
+
+        n_class = int(lbls.max()) + 1
+
+        model_ft = QHGNN(
+            in_ch=fts.shape[1],
+            n_class=n_class,
+            n_hid=hidden_layer_size, 
+            dropout=dropout
+        ).to(device)
+
+        optimizer = optim.Adam(model_ft.parameters(), lr, weight_decay=weight_decay)
+        milestones = [int(x) for x in milestones_input.split(',')]
+        scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
+        criterion = torch.nn.CrossEntropyLoss()
+
+        model_ft = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, Q=Q)
+
+
+
 def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, Q=None):
     since = time.time()
 
