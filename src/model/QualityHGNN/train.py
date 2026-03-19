@@ -16,7 +16,15 @@ class Train_QHGNN:
     def __init__(self):
         self.reviews = load_postgres_review_data()
 
-    def train(self, num_epochs=1000, lr=0.001, hidden_layer_size=128, train_proportion=0.8, dropout=0.5, weight_decay=5e-4, gamma=0.5, milestones_input="50,100"):
+    def train(self, num_epochs=1000, 
+              lr=0.001, 
+              hidden_layer_size=128, 
+              train_proportion=0.8, 
+              dropout=0.5, 
+              weight_decay=5e-4, 
+              gamma=0.5, 
+              milestones_input="50,100"
+              ):
         H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(self.reviews)
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)
