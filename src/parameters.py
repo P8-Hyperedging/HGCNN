@@ -6,6 +6,7 @@ class InputType(str, Enum):
     INPUT = "input"
     TOGGLE = "toggle"
     Select = "select"
+    Text = "text"
 
 @dataclass
 class BaseParameter:
@@ -26,6 +27,10 @@ class InputParameter(BaseParameter):
     default: float
 
 @dataclass
+class TextInputParameter(BaseParameter):
+    placeholder: str
+
+@dataclass
 class ToggleParameter(BaseParameter):
     default: bool
 
@@ -33,7 +38,7 @@ class ToggleParameter(BaseParameter):
 class SelectParameter(BaseParameter):
     options: list[str]
 
-Parameter = RangeParameter | InputParameter| ToggleParameter | SelectParameter
+Parameter = RangeParameter | InputParameter| ToggleParameter | SelectParameter | TextInputParameter
 
 def get_parameters() -> list[Parameter]:
     return [
@@ -60,11 +65,10 @@ def get_moonlab_parameters() -> list[Parameter]:
         InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
         InputParameter(name="Hidden layers size", min=1, max=4096, default=128, type=InputType.INPUT),
         InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
-        InputParameter(name="Validation proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
         InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
         InputParameter(name="Weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
         InputParameter(name="Gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
-        InputParameter(name="Learning milestone", min=0, max=200, default=50, type=InputType.INPUT),
+        TextInputParameter(name="Learning milestone", placeholder="50,100", type=InputType.Text),
     ]
 
 def get_qhgnn_parameters() -> list[Parameter]:
@@ -73,7 +77,6 @@ def get_qhgnn_parameters() -> list[Parameter]:
         InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
         InputParameter(name="Hidden layers size", min=1, max=4096, default=128, type=InputType.INPUT),
         InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
-        InputParameter(name="Validation proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
         InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
         InputParameter(name="Weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
         InputParameter(name="Gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
