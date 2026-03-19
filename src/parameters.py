@@ -45,13 +45,41 @@ def get_parameters() -> list[Parameter]:
 
 def get_allset_parameters() -> list[Parameter]:
     return [
-        InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
         InputParameter(name="Epoch", min=0, max=10000, default=500, type=InputType.INPUT),
+        InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
         InputParameter(name="Hidden layers", min=0, max=256, default=64, type=InputType.INPUT),
         InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
         InputParameter(name="Validation proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
         InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
+        InputParameter(name="Weight decay", min=0, max=1, default=0, type=InputType.INPUT),
     ]
+
+def get_moonlab_parameters() -> list[Parameter]:
+    return [
+        InputParameter(name="Epoch", min=0, max=10000, default=500, type=InputType.INPUT),
+        InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
+        InputParameter(name="Hidden layers size", min=1, max=4096, default=128, type=InputType.INPUT),
+        InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="Validation proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
+        InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
+        InputParameter(name="Weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
+        InputParameter(name="Gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="Learning milestone", min=0, max=200, default=50, type=InputType.INPUT),
+    ]
+
+def get_qhgnn_parameters() -> list[Parameter]:
+    return [
+        InputParameter(name="Epoch", min=0, max=10000, default=500, type=InputType.INPUT),
+        InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
+        InputParameter(name="Hidden layers size", min=1, max=4096, default=128, type=InputType.INPUT),
+        InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="Validation proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
+        InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
+        InputParameter(name="Weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
+        InputParameter(name="Gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="Learning milestone", min=0, max=200, default=50, type=InputType.INPUT),
+    ]
+
 
 # Serialize to JSON-ready dict
 def serialize(params: list[Parameter]):

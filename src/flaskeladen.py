@@ -1,5 +1,5 @@
 from flask import Flask, jsonify
-from parameters import InputType, SelectParameter, get_allset_parameters, get_parameters, serialize
+from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, get_parameters, serialize
 
 app = Flask(__name__)
 
@@ -17,6 +17,10 @@ def params(model: str):
     match model:
         case "allset":
             return jsonify(serialize(get_allset_parameters()))
+        case "moonlab":
+            return jsonify(serialize(get_moonlab_parameters()))
+        case "qhgnn":
+            return jsonify(serialize(get_qhgnn_parameters()))
         case _:
             return jsonify(serialize(get_parameters()))
 
