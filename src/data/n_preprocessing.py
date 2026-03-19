@@ -74,7 +74,7 @@ def create_quality_matrix_from_H(reviews):
     Q = np.zeros((num_nodes, num_hyperedges), dtype=float)
 
     # Fill quality matrix (each column is filled based on variance)
-    Q = "Fuck dig"
+    
 
     return Q
 
