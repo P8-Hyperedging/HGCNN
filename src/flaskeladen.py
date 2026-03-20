@@ -4,6 +4,7 @@ from model.QualityHGNN.train import Train_QHGNN
 from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, get_parameters, serialize
 import threading
 from datetime import datetime
+import traceback
 
 app = Flask(__name__)
 api = Api(app, version='1.0', title='HGCNN API',
@@ -113,6 +114,8 @@ def train_model_async(model: str, data: dict, job_id: str):
 
     except Exception as e:
         print("Oops")
+        print(f"Error: {str(e)}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

@@ -15,3 +15,10 @@ Run it (surely):
 Run all pytests (from HGCNN/nn folder):
 
 `pytest -v -s`
+
+
+# Docker
+
+`docker build -t hgcnn .`
+
+`docker run -p 5000:5000 hgcnn`
