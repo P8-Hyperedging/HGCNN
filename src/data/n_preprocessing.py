@@ -61,6 +61,9 @@ def get_opening_hours_vector(business_hours : OpeningHours):
 
     return oh_features
 
+def reviews_from_user(user_id, reviews):
+    return [r for r in reviews if r['user_id'] == user_id]
+
 # Matrix is N X E, where N is number of nodes (businesses) and E is number of hyperedges (users).
 def create_quality_matrix_from_H(reviews):
 
@@ -73,8 +76,18 @@ def create_quality_matrix_from_H(reviews):
     # initialize quality matrix
     Q = np.zeros((num_nodes, num_hyperedges), dtype=float)
 
-    # Fill quality matrix (each column is filled based on variance)
-    
+    # Idea, just fill each column with the quality score of that hyperedge, then we can element-wise multiply with H.
+    user_column = 0
+    for user_id in user_to_businesses:
+        user_reviews = reviews_from_user(user_id, reviews)
+        mean = calculate_mean_stars(user_reviews)
+        variance = calculate_review_variance(user_reviews, mean) + 1e-5 # prevent division by zero.
+        print(f"User {user_id} - Mean stars: {mean:.2f}, Variance: {variance:.4f}")
+
+        # Assumption: Higher variance is worse for quality.
+        for node in range(num_nodes):
+            Q[node, user_column] = 1 / variance
+    user_column += 1
 
     return Q
 
