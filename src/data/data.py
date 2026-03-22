@@ -199,6 +199,6 @@ def group_reviews_by_user(reviews):
     user_to_businesses = defaultdict(set)
 
     for r in reviews:
-        user_to_businesses[r['user_id']].add(r['business_id'])
+        user_to_businesses[r['user_id']].add((r['business_id'], r['stars']))
 
     return user_to_businesses

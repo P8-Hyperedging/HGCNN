@@ -5,7 +5,8 @@ import torch
 
 import torch
 from model.QualityHGNN.QHGNN import QHGNN
-from torch import optim, split
+from sklearn.model_selection import train_test_split
+from torch import device, optim, split
 
 from data.data import *
 from data.n_preprocessing import *
@@ -18,7 +19,7 @@ class Train_QHGNN:
 
     def train(self, num_epochs=1000, 
               lr=0.001, 
-              hidden_layer_size=128, 
+              hidden_layer_size=256, 
               train_proportion=0.8, 
               dropout=0.5, 
               weight_decay=5e-4, 
@@ -26,6 +27,8 @@ class Train_QHGNN:
               milestones_input="50,100"
               ):
         H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(self.reviews)
+        print(f"H shape: {H.shape}")
+
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)
 
@@ -34,17 +37,25 @@ class Train_QHGNN:
 
         lv = create_label_vector(businesses)
 
+        unique, counts = np.unique(lv, return_counts=True)
+        print("Label distribution:")
+        for label, count in zip(unique, counts):
+            print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
+
         n = len(businesses)
-        split = int(n * train_proportion)
+        labeled_proportion = 0.1  # Only 10% labeled (semi-supervised)
+        labeled_size = int(n * labeled_proportion)
 
-        training_range = np.arange(0, split)
-        testing_range = np.arange(split, n)
+        labeled_indices = np.random.choice(n, labeled_size, replace=False)
 
-        print(f"Training range: {0} - {split}, Testing range: {split+1} - {2*split}")
+        idx_train_labeled, idx_val_labeled = train_test_split(labeled_indices, test_size=0.4, random_state=42)
+        print(f"Total nodes: {n}, Labeled nodes: {labeled_size}, Train labeled: {len(idx_train_labeled)}, Val labeled: {len(idx_val_labeled)}")
 
-        print(f"H shape: {H.shape}")
 
-        G = generate_G_from_H(H)
+        Q = create_quality_matrix_from_H(self.reviews)
+        print(f"Q shape: {Q.shape}")
+        HQ = H * Q 
+        G = generate_G_from_H(HQ)
         print(f"G shape: {G.shape}")
 
 
@@ -53,9 +64,9 @@ class Train_QHGNN:
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
         G = torch.Tensor(G).to(device)
-        Q = create_quality_matrix(G).to(device)
-        idx_train = torch.Tensor(training_range).long().to(device)
-        idx_test = torch.Tensor(testing_range).long().to(device)
+        Q = torch.Tensor(torch.ones_like(G)).to(device) # Placeholder, does nothing!
+        idx_train = torch.Tensor(idx_train_labeled).long().to(device)
+        idx_test = torch.Tensor(idx_val_labeled).long().to(device)
 
         n_class = int(lbls.max()) + 1
 

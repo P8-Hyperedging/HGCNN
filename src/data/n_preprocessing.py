@@ -22,7 +22,7 @@ def build_hypergraph_incidence_matrix(reviews):
     user_column = 0
     for user_id in user_to_businesses:
         reviewed_businesses = user_to_businesses[user_id]
-        for business_id in reviewed_businesses:
+        for business_id, stars in reviewed_businesses:
             business_row = business_to_idx[business_id]
             H[business_row, user_column] = 1
         user_column += 1
@@ -36,7 +36,8 @@ def get_business_id_mapping(reviews):
     # collect all unique business IDs
     business_ids_set = set()
     for businesses in user_to_businesses.values():
-        business_ids_set.update(businesses)
+       for business_id, stars in businesses:
+            business_ids_set.add(business_id)
 
     business_ids = list(business_ids_set)
 
@@ -69,6 +70,11 @@ def create_quality_matrix_from_H(reviews):
 
     business_ids, business_to_idx, user_to_businesses = get_business_id_mapping(reviews)
 
+    # Pre-group reviews by user
+    user_reviews_map = {}
+    for review in reviews:
+        user_reviews_map.setdefault(review['user_id'], []).append(review)
+
     # matrix size
     num_nodes = len(business_ids)
     num_hyperedges = len(user_to_businesses)
@@ -79,31 +85,20 @@ def create_quality_matrix_from_H(reviews):
     # Idea, just fill each column with the quality score of that hyperedge, then we can element-wise multiply with H.
     user_column = 0
     for user_id in user_to_businesses:
-        user_reviews = reviews_from_user(user_id, reviews)
+        if user_column % 100 == 0:
+            print (f"Calculating quality scores for each hyperedge... ({user_column+1}/{num_hyperedges})")
+        user_reviews = user_reviews_map[user_id]
         mean = calculate_mean_stars(user_reviews)
         variance = calculate_review_variance(user_reviews, mean) + 1e-5 # prevent division by zero.
-        print(f"User {user_id} - Mean stars: {mean:.2f}, Variance: {variance:.4f}")
+        #print(f"User {user_id} - Mean stars: {mean:.2f}, Variance: {variance:.4f}")
 
         # Assumption: Higher variance is worse for quality.
-        for node in range(num_nodes):
-            Q[node, user_column] = 1 / variance
-    user_column += 1
+        Q[:, user_column] = 1 / variance # 1/v makes higher variance = lower weight
+        user_column += 1
 
     return Q
 
 # Should probably use businesses and reviews as parameters
-def create_quality_matrix_from_G(G):
-    # Add rules for determining quality of hyperedges here.
-    # Idea 1: Businesses with low review count get lower aggregation contribution (lower weight).
-    # (this is probably already the case because of the laplacian normalization, 
-    # but we could also explicitly add it as a weight, idk its a blackbox).
-    # Idea 2: Users who review many businesses get lower aggregation contribution 
-    # Idea 3: Use variance or other statistical measure of the ratings given by a user as a weight 
-    # (users with more consistent ratings could be more reliable(or less!)).
-
-
-    
-    return torch.ones_like(G) # Placeholder, does nothing!
 
 def create_business_feature_matrix(businesses: list[Business], opening_hours):
     nodes = len(businesses)
