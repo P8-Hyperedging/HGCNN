@@ -3,6 +3,7 @@
 
 import json
 import os
+import random
 import time
 import torch
 import argparse
@@ -87,7 +88,6 @@ def count_parameters(model):
 class Train_AllSetTransformer:
     total_start_time = time.time()
     def __init__(self):
-        self.model_name = 'AllSetTransformer'
         self.dname = 'yelp'
         self.All_num_layers = 1
         self.MLP_num_layers = 2
@@ -114,9 +114,20 @@ class Train_AllSetTransformer:
               train_proportion=0.5,
               valid_proportion=0.25,
               dropout=0.0, 
+              model_name = 'AllSetTransformer'
               ):
         
         total_start_time = time.time()
+
+        seed = random.randint(0, 2**32 - 1)
+
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.deterministic = True
+
         # Load from database directly instead of using the wrapper class that Allset used.
         data = load_yelp_dataset(train_percent = train_proportion)
         self.num_features = data.num_node_features
@@ -202,12 +213,10 @@ class Train_AllSetTransformer:
             valid_acc = 100*result[1]
             test_acc = 100*result[2]
 
-            train_end_time = time.time()
-            train_runtime = train_end_time - train_start_time
+            train_runtime = time.time()- train_start_time
 
         
-        total_end_time = time.time()
-        total_runtime = total_end_time - total_start_time
+        total_runtime = time.time() - total_start_time
 
         parameters = {
             "Hidden Layer Size": hidden_layer_size,
@@ -223,14 +232,14 @@ class Train_AllSetTransformer:
 
 
         output_metrics_to_db(
-            self.model_name,
+            model_name,
             train_runtime,
             total_runtime,
             parameters_json,
             train_acc,
             valid_acc,
             test_acc,
-            #seed   #TODO: add seed to output
+            seed=seed
         )
 
         print('All done with AllSet!')

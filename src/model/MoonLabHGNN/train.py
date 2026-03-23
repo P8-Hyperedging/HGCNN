@@ -1,11 +1,13 @@
 
+import json
+import random
 import time
 import copy
 import numpy as np
 import torch
 from torch import optim
 
-from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data
+from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data, output_metrics_to_db
 from data.n_preprocessing import build_hypergraph_incidence_matrix, create_business_feature_matrix, create_label_vector, create_quality_matrix
 from utils.utils import generate_G_from_H
 from utils.utils import generate_G_from_H
@@ -26,8 +28,22 @@ class Train_MoonLabHGNN:
             dropout=0.5, 
             weight_decay=5e-4, 
             gamma=0.5, 
-            milestones_input="50,100"
+            milestones_input="50,100",
+            method_name="MoonLabHGNN"
             ):
+        total_runtime_start = time.time()
+
+
+        seed = random.randint(0, 2**32 - 1)
+
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.deterministic = True
+
+        
         H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(self.reviews)
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)
@@ -74,7 +90,31 @@ class Train_MoonLabHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G)
+        model_ft, valid_acc, train_runtime = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G)
+
+        total_runtime = time.time() - total_runtime_start
+
+        parameters = {
+            "Hidden Layer Size": hidden_layer_size,
+            "Learning Rate": lr,
+            "Weight Decay": weight_decay,
+            "Epochs": num_epochs,
+            "Train Proportion": train_proportion,
+            "Dropout": dropout,
+        }
+
+        parameters_json = json.dumps(parameters)
+
+
+        output_metrics_to_db(
+            model_name=method_name,
+            training_time=train_runtime,
+            total_runtime=total_runtime,
+            parameters=parameters_json,
+            #Psycopg2 doesn't play nice when a tensor is parsed. Therefore check if valid_acc is tensor and convert to float if so.
+            valid_acc=float(valid_acc.item()*100) if torch.is_tensor(valid_acc) else valid_acc*100,
+            seed=seed
+        )
 
 def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None):
     since = time.time()
@@ -137,4 +177,4 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    return model
+    return model, best_acc, time_elapsed
