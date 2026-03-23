@@ -138,29 +138,3 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
     # load best model weights
     model.load_state_dict(best_model_wts)
     return model
-
-if __name__ == "__main__":
-    from .HGNN import HGNN
-    from torch.optim import Adam
-    from torch.optim.lr_scheduler import StepLR
-    import torch.nn as nn
-
-    # Load data
-    fts, lbls, G, idx_train, idx_test = load_data_moonlab()
-
-    # Model and training parameters
-    in_ch = fts.shape[1]
-    n_class = lbls.max().item() + 1
-    n_hid = 64
-    dropout = 0.5
-    num_epochs = 1000
-    print_freq = 100
-
-    # Initialize model, criterion, optimizer, and scheduler
-    model = HGNN(in_ch, n_class, n_hid, dropout)
-    criterion = nn.CrossEntropyLoss()
-    optimizer = Adam(model.parameters(), lr=0.01, weight_decay=5e-4)
-    scheduler = StepLR(optimizer, step_size=200, gamma=0.5)
-
-    # Train the model
-    best_model = train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=num_epochs, print_freq=print_freq, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G)
