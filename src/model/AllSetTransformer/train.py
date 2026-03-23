@@ -127,6 +127,7 @@ class Train_AllSetTransformer:
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
             torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
 
         # Load from database directly instead of using the wrapper class that Allset used.
         data = load_yelp_dataset(train_percent = train_proportion)
