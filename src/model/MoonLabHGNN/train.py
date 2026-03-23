@@ -56,7 +56,7 @@ class Train_MoonLabHGNN:
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
         G = torch.Tensor(G).to(device)
-        Q = create_quality_matrix(G).to(device)
+        
         idx_train = torch.Tensor(training_range).long().to(device)
         idx_test = torch.Tensor(testing_range).long().to(device)
 
