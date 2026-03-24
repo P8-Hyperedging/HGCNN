@@ -119,8 +119,7 @@ class Train_AllSetTransformer:
         total_start_time = time.time()
 
         rng = np.random.default_rng()
-        seedThatHasTheWrongType = rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0]
-        seed = int(seedThatHasTheWrongType)
+        seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
         
 
         random.seed(seed)
