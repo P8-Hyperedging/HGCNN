@@ -7,6 +7,7 @@ import random
 import time
 import torch
 import argparse
+import sys
 
 import numpy as np
 import os.path as osp
@@ -119,7 +120,7 @@ class Train_AllSetTransformer:
         
         total_start_time = time.time()
 
-        seed = random.randint(0, 2**32 - 1)
+        seed = random.randint(0, sys.maxsize)
 
         random.seed(seed)
         np.random.seed(seed)

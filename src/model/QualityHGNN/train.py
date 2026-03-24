@@ -4,6 +4,7 @@ import copy
 import torch
 import random
 import json
+import sys
 
 import torch
 from model.QualityHGNN.QHGNN import QHGNN
@@ -30,7 +31,7 @@ class Train_QHGNN:
               ):
         total_runtime_start = time.time()
 
-        seed = random.randint(0, 2**32 - 1)
+        seed = random.randint(0, sys.maxsize)
 
         random.seed(seed)
         np.random.seed(seed)

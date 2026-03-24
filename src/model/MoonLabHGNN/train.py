@@ -5,6 +5,7 @@ import time
 import copy
 import numpy as np
 import torch
+import sys
 from torch import optim
 
 from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data, output_metrics_to_db
@@ -34,7 +35,7 @@ class Train_MoonLabHGNN:
         total_runtime_start = time.time()
 
 
-        seed = random.randint(0, 2**32 - 1)
+        seed = random.randint(0, sys.maxsize)
 
         random.seed(seed)
         np.random.seed(seed)
