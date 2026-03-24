@@ -124,11 +124,6 @@ def create_label_vector(businesses):
     labels = np.zeros(len(businesses))
     for i in range(len(businesses)):
         b = businesses[i]
-        if b.stars >= 4.0:
-            labels[i] = 2
-        elif b.stars >= 3.0:
-            labels[i] = 1
-        else:
-            labels[i] = 0
+        labels[i] = round(b.stars * 2)
         
     return labels
