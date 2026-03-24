@@ -19,7 +19,7 @@ class Train_QHGNN:
     def __init__(self):
         self.reviews = load_postgres_review_data()
 
-    def train(self, num_epochs=1000, 
+    def train(self, num_epochs=100, 
               lr=0.001, 
               hidden_layer_size=128, 
               train_proportion=0.8, 
@@ -31,7 +31,9 @@ class Train_QHGNN:
               ):
         total_runtime_start = time.time()
 
-        seed = random.randint(0, sys.maxsize)
+        rng = np.random.default_rng()
+        seedThatHasTheWrongType = rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0]
+        seed = int(seedThatHasTheWrongType)
 
         random.seed(seed)
         np.random.seed(seed)

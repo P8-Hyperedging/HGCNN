@@ -35,7 +35,9 @@ class Train_MoonLabHGNN:
         total_runtime_start = time.time()
 
 
-        seed = random.randint(0, sys.maxsize)
+        rng = np.random.default_rng()
+        seedThatHasTheWrongType = rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0]
+        seed = int(seedThatHasTheWrongType)
 
         random.seed(seed)
         np.random.seed(seed)
