@@ -3,16 +3,16 @@
 
 import json
 import os
+import random
 import time
 import torch
 import argparse
+import sys
 
 import numpy as np
 import os.path as osp
 import torch.nn as nn
 import torch.nn.functional as F
-
-from tqdm import tqdm
 
 from .layers import *
 from .AllSetTransformer import *
@@ -87,7 +87,6 @@ def count_parameters(model):
 class Train_AllSetTransformer:
     total_start_time = time.time()
     def __init__(self):
-        self.model_name = 'AllSetTransformer'
         self.dname = 'yelp'
         self.All_num_layers = 1
         self.MLP_num_layers = 2
@@ -110,13 +109,27 @@ class Train_AllSetTransformer:
               hidden_layer_size=64, 
               lr=0.001, 
               weight_decay=0.0, 
-              epochs=1000,
+              num_epochs=100,
               train_proportion=0.5,
               valid_proportion=0.25,
               dropout=0.0, 
+              method_name = 'AllSetTransformer'
               ):
         
         total_start_time = time.time()
+
+        rng = np.random.default_rng()
+        seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
+        
+
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(seed)
+            torch.backends.cudnn.deterministic = True
+            torch.backends.cudnn.benchmark = False
+
         # Load from database directly instead of using the wrapper class that Allset used.
         data = load_yelp_dataset(train_percent = train_proportion)
         self.num_features = data.num_node_features
@@ -171,13 +184,13 @@ class Train_AllSetTransformer:
 
         ### Training loop ###
         train_start_time = time.time()
-        for run in tqdm(range(self.runs)):
+        for run in range(self.runs):
             split_idx = split_idx_lst[run]
             train_idx = split_idx['train'].to(device)
             model.reset_parameters()
             optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
-            for epoch in range(epochs):
+            for epoch in range(num_epochs):
                 # Training part
                 model.train()
                 optimizer.zero_grad()
@@ -202,18 +215,16 @@ class Train_AllSetTransformer:
             valid_acc = 100*result[1]
             test_acc = 100*result[2]
 
-            train_end_time = time.time()
-            train_runtime = train_end_time - train_start_time
+            train_runtime = time.time()- train_start_time
 
         
-        total_end_time = time.time()
-        total_runtime = total_end_time - total_start_time
+        total_runtime = time.time() - total_start_time
 
         parameters = {
             "Hidden Layer Size": hidden_layer_size,
             "Learning Rate": lr,
             "Weight Decay": weight_decay,
-            "Epochs": epochs,
+            "Epochs": num_epochs,
             "Train Proportion": train_proportion,
             "Valid Proportion": valid_proportion,
             "Dropout": dropout,
@@ -223,14 +234,14 @@ class Train_AllSetTransformer:
 
 
         output_metrics_to_db(
-            self.model_name,
+            method_name,
             train_runtime,
             total_runtime,
             parameters_json,
             train_acc,
             valid_acc,
             test_acc,
-            #seed   #TODO: add seed to output
+            seed
         )
 
         print('All done with AllSet!')
