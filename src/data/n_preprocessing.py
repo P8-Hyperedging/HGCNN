@@ -63,7 +63,11 @@ def get_opening_hours_vector(business_hours : OpeningHours):
     return oh_features
 
 def reviews_from_user(user_id, reviews):
-    return [r for r in reviews if r['user_id'] == user_id]
+    result = []
+    for r in reviews:
+        if r['user_id'] == user_id:
+            result.append(r)
+    return result
 
 # Matrix is N X E, where N is number of nodes (businesses) and E is number of hyperedges (users).
 def create_quality_matrix_from_H(reviews):
@@ -71,7 +75,10 @@ def create_quality_matrix_from_H(reviews):
     
     user_reviews_map = {}
     for review in reviews:
-        user_reviews_map.setdefault(review['user_id'], []).append(review)
+        user_id = review['user_id']
+        if user_id not in user_reviews_map:
+            user_reviews_map[user_id] = []
+        user_reviews_map[user_id].append(review)
 
     num_hyperedges = len(user_to_businesses)
     W = np.zeros(num_hyperedges, dtype=float) 
