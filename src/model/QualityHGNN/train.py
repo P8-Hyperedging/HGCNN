@@ -54,6 +54,7 @@ class Train_QHGNN:
 
         lv = create_label_vector(businesses)
 
+        # Print label distribution
         unique, counts = np.unique(lv, return_counts=True)
         print("Label distribution:")
         for label, count in zip(unique, counts):
