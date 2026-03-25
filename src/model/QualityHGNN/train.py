@@ -70,10 +70,13 @@ class Train_QHGNN:
         print(f"Total nodes: {n}, Labeled nodes: {labeled_size}, Train labeled: {len(idx_train_labeled)}, Val labeled: {len(idx_val_labeled)}")
 
 
-        Q = create_quality_matrix_from_H(self.reviews)
+        Q = diags(create_quality_matrix_from_H(self.reviews))
         print(f"Q shape: {Q.shape}")
-        HQ = H * Q 
-        G = generate_G_from_H(HQ)
+
+        (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
+        # Generating G terms
+
+        G = DV2_H.dot(Q).dot(invDE_HT_DV2).toarray()
         print(f"G shape: {G.shape}")
 
 

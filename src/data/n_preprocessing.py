@@ -67,36 +67,26 @@ def reviews_from_user(user_id, reviews):
 
 # Matrix is N X E, where N is number of nodes (businesses) and E is number of hyperedges (users).
 def create_quality_matrix_from_H(reviews):
-
     business_ids, business_to_idx, user_to_businesses = get_business_id_mapping(reviews)
-
-    # Pre-group reviews by user
+    
     user_reviews_map = {}
     for review in reviews:
         user_reviews_map.setdefault(review['user_id'], []).append(review)
 
-    # matrix size
-    num_nodes = len(business_ids)
     num_hyperedges = len(user_to_businesses)
+    W = np.zeros(num_hyperedges, dtype=float) 
 
-    # initialize quality matrix
-    Q = np.zeros((num_nodes, num_hyperedges), dtype=float)
-
-    # Idea, just fill each column with the quality score of that hyperedge, then we can element-wise multiply with H.
-    user_column = 0
-    for user_id in user_to_businesses:
-        if user_column % 100 == 0:
-            print (f"Calculating quality scores for each hyperedge... ({user_column+1}/{num_hyperedges})")
+    for user_column, user_id in enumerate(user_to_businesses):
+        if user_column % 1000 == 0:
+            print(f"Calculating quality scores for each hyperedge... ({user_column+1}/{num_hyperedges})")
+        
         user_reviews = user_reviews_map[user_id]
         mean = calculate_mean_stars(user_reviews)
-        variance = calculate_review_variance(user_reviews, mean) + 1e-5 # prevent division by zero.
-        #print(f"User {user_id} - Mean stars: {mean:.2f}, Variance: {variance:.4f}")
+        variance = calculate_review_variance(user_reviews, mean) + 1e-5 # avoid division by zero
+        
+        W[user_column] = 1 / variance
 
-        # Assumption: Higher variance is worse for quality.
-        Q[:, user_column] = 1 / variance # 1/v makes higher variance = lower weight
-        user_column += 1
-
-    return Q
+    return W 
 
 # Should probably use businesses and reviews as parameters
 
