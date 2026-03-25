@@ -81,7 +81,7 @@ def create_quality_matrix_from_H(reviews):
         user_reviews_map[user_id].append(review)
 
     num_hyperedges = len(user_to_businesses)
-    W = np.zeros(num_hyperedges, dtype=float) 
+    W = np.zeros(num_hyperedges, dtype=float) # array which represents diagonal matrix.
 
     for user_column, user_id in enumerate(user_to_businesses):
         if user_column % 1000 == 0:
