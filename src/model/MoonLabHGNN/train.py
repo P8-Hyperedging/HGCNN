@@ -30,13 +30,15 @@ class Train_MoonLabHGNN:
             weight_decay=5e-4, 
             gamma=0.5, 
             milestones_input="50,100",
-            method_name="MoonLabHGNN"
+            model_name="MoonLabHGNN",
+            job_id=None,
+            seed = -1
             ):
         total_runtime_start = time.time()
 
-
-        rng = np.random.default_rng()
-        seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
+        if seed == -1:
+            rng = np.random.default_rng()
+            seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
 
         random.seed(seed)
         np.random.seed(seed)
@@ -110,13 +112,14 @@ class Train_MoonLabHGNN:
 
 
         output_metrics_to_db(
-            model_name=method_name,
+            model_name=model_name,
             training_time=train_runtime,
             total_runtime=total_runtime,
             parameters=parameters_json,
             #Psycopg2 doesn't play nice when a tensor is parsed. Therefore check if valid_acc is tensor and convert to float if so.
             valid_acc=float(valid_acc.item()*100) if torch.is_tensor(valid_acc) else valid_acc*100,
-            seed=seed
+            seed=seed,
+            job_id=job_id
         )
 
 def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None):

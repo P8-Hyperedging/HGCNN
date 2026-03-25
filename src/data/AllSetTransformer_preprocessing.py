@@ -30,7 +30,6 @@ def load_yelp_dataset(train_percent = 0.025):
         feature_list.append([
             b.latitude, 
             b.longitude,
-            b.stars,
             b.review_count])
         
     features = np.array(feature_list)

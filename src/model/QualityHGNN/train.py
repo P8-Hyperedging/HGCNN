@@ -28,12 +28,15 @@ class Train_QHGNN:
               weight_decay=5e-4, 
               gamma=0.5, 
               milestones_input="50,100",
-              method_name="QHGNN"
+              model_name="QHGNN",
+              job_id=None,
+              seed = -1
               ):
         total_runtime_start = time.time()
 
-        rng = np.random.default_rng()
-        seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
+        if seed == -1:
+            rng = np.random.default_rng()
+            seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
 
         random.seed(seed)
         np.random.seed(seed)
@@ -120,7 +123,8 @@ class Train_QHGNN:
 
 
         output_metrics_to_db(
-            model_name=method_name,
+            model_name=model_name,
+            job_id=job_id,
             training_time=train_runtime,
             total_runtime=total_runtime,
             parameters=parameters_json,

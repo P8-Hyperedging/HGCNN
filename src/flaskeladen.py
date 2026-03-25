@@ -3,7 +3,7 @@ from flask_restx import Api, Resource, fields, Namespace
 from model.QualityHGNN.train import Train_QHGNN
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 from model.AllSetTransformer.train import Train_AllSetTransformer
-from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, get_parameters, serialize
+from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, serialize
 import threading
 from datetime import datetime
 import traceback
@@ -22,10 +22,12 @@ train_params_model = api.model('TrainParameters', {
     'lr': fields.Float(default=0.001, description='Learning rate'),
     'hidden_layer_size': fields.Integer(default=128, description='Size of hidden layers'),
     'train_proportion': fields.Float(default=0.8, description='Proportion of data for training'),
+    'valid_proportion': fields.Float(default=0.25, description='Proportion of data for validation (only for AllSetTransformer)'),
     'dropout': fields.Float(default=0.5, description='Dropout rate'),
     'weight_decay': fields.Float(default=5e-4, description='L2 regularization parameter'),
     'gamma': fields.Float(default=0.5, description='Learning rate decay factor'),
     'milestones_input': fields.String(default='50,100', description='Comma-separated epoch milestones for LR decay'),
+    'seed': fields.Integer(default=-1, description='Set seed for reproducibility (use -1 for random)'),
 })
 
 model_option_model = api.model('ModelOption', {
@@ -108,7 +110,8 @@ def train_model_async(model: str, data: dict, job_id: str):
                     weight_decay=data.get("weight_decay", 5e-4),
                     gamma=data.get("gamma", 0.5),
                     milestones_input=data.get("milestones_input", "50,100"),
-                    method_name=job_id
+                    seed=data.get("seed", -1),
+                    job_id=job_id
                 )
             case "allset":
                 trainer = Train_AllSetTransformer()
@@ -120,7 +123,8 @@ def train_model_async(model: str, data: dict, job_id: str):
                     valid_proportion=data.get("valid_proportion", 0.25),
                     dropout=data.get("dropout", 0.0),
                     weight_decay=data.get("weight_decay", 0.0),
-                    method_name=job_id
+                    seed=data.get("seed", -1),
+                    job_id=job_id
                 )
             case "moonlab":
                 trainer = Train_MoonLabHGNN()
@@ -133,7 +137,8 @@ def train_model_async(model: str, data: dict, job_id: str):
                     weight_decay=data.get("weight_decay", 5e-4),
                     gamma=data.get("gamma", 0.5),
                     milestones_input=data.get("milestones_input", "50,100"),
-                    method_name=job_id
+                    seed=data.get("seed", -1),
+                    job_id=job_id
                 )
 
     except Exception as e:
