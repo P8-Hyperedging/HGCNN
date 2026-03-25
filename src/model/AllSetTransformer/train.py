@@ -109,17 +109,19 @@ class Train_AllSetTransformer:
               hidden_layer_size=64, 
               lr=0.001, 
               weight_decay=0.0, 
-              num_epochs=100,
+              num_epochs=1000,
               train_proportion=0.5,
               valid_proportion=0.25,
-              dropout=0.0, 
-              method_name = 'AllSetTransformer'
+              dropout=0.5, 
+              model_name = 'AllSetTransformer',
+              job_id = None,
+              seed = -1
               ):
-        
         total_start_time = time.time()
 
-        rng = np.random.default_rng()
-        seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
+        if seed == -1:
+            rng = np.random.default_rng()
+            seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
         
 
         random.seed(seed)
@@ -234,14 +236,15 @@ class Train_AllSetTransformer:
 
 
         output_metrics_to_db(
-            method_name,
+            model_name,
             train_runtime,
             total_runtime,
             parameters_json,
             train_acc,
             valid_acc,
             test_acc,
-            seed
+            seed,
+            job_id
         )
 
         print('All done with AllSet!')
