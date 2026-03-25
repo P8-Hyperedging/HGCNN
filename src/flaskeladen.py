@@ -1,9 +1,12 @@
 from flask import Flask, jsonify, request
 from flask_restx import Api, Resource, fields, Namespace
 from model.QualityHGNN.train import Train_QHGNN
+from model.MoonLabHGNN.train import Train_MoonLabHGNN
+from model.AllSetTransformer.train import Train_AllSetTransformer
 from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, get_parameters, serialize
 import threading
 from datetime import datetime
+import traceback
 
 app = Flask(__name__)
 api = Api(app, version='1.0', title='HGCNN API',
@@ -104,15 +107,39 @@ def train_model_async(model: str, data: dict, job_id: str):
                     dropout=data.get("dropout", 0.5),
                     weight_decay=data.get("weight_decay", 5e-4),
                     gamma=data.get("gamma", 0.5),
-                    milestones_input=data.get("milestones_input", "50,100")
+                    milestones_input=data.get("milestones_input", "50,100"),
+                    method_name=job_id
                 )
             case "allset":
-                pass
+                trainer = Train_AllSetTransformer()
+                trainer.train(
+                    num_epochs=data.get("num_epochs", 1000),
+                    lr=data.get("lr", 0.001),
+                    hidden_layer_size=data.get("hidden_layer_size", 64),
+                    train_proportion=data.get("train_proportion", 0.5),
+                    valid_proportion=data.get("valid_proportion", 0.25),
+                    dropout=data.get("dropout", 0.0),
+                    weight_decay=data.get("weight_decay", 0.0),
+                    method_name=job_id
+                )
             case "moonlab":
-                pass
+                trainer = Train_MoonLabHGNN()
+                trainer.train(
+                    num_epochs=data.get("num_epochs", 1000),
+                    lr=data.get("lr", 0.001),
+                    hidden_layer_size=data.get("hidden_layer_size", 128),
+                    train_proportion=data.get("train_proportion", 0.8),
+                    dropout=data.get("dropout", 0.5),
+                    weight_decay=data.get("weight_decay", 5e-4),
+                    gamma=data.get("gamma", 0.5),
+                    milestones_input=data.get("milestones_input", "50,100"),
+                    method_name=job_id
+                )
 
     except Exception as e:
         print("Oops")
+        print(f"Error: {str(e)}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
