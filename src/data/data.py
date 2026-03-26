@@ -159,20 +159,20 @@ def load_postgres_user_data(limit=200000):
 
 def load_postgres_review_data(db_table_name="az_user_reviews_over_4"):
     reviews = []
-
     with psycopg2.connect(**params) as conn:
         with conn.cursor() as cur:
             query = sql.SQL(
-                "SELECT review_id, user_id, business_id FROM {}"
+                "SELECT az_user_reviews_over_4.review_id, az_user_reviews_over_4.user_id, az_user_reviews_over_4.business_id, review.stars FROM {} INNER JOIN review ON az_user_reviews_over_4.review_id = review.review_id"
             ).format(sql.Identifier(db_table_name))
 
             cur.execute(query)
 
-            for review_id, user_id, business_id in cur:
+            for review_id, user_id, business_id, stars in cur:
                 reviews.append({
                     "review_id": review_id,
                     "user_id": user_id,
-                    "business_id": business_id
+                    "business_id": business_id,
+                    "stars": stars
                 })
 
     return reviews
@@ -197,7 +197,7 @@ def group_reviews_by_user(reviews):
     user_to_businesses = defaultdict(set)
 
     for r in reviews:
-        user_to_businesses[r['user_id']].add(r['business_id'])
+        user_to_businesses[r['user_id']].add((r['business_id'], r['stars']))
 
     return user_to_businesses
 

@@ -116,7 +116,7 @@ def _generate_G_from_H(H, variable_weight=False):
     if variable_weight:
         DV2_H = DV2.dot(H)
         invDE_HT_DV2 = invDE.dot(HT).dot(DV2)
-        result = (DV2_H.toarray(), W_diag.toarray(), invDE_HT_DV2.toarray())
+        result = (DV2_H, W_diag, invDE_HT_DV2)
     else:
         G = DV2.dot(H).dot(W_diag).dot(invDE).dot(HT).dot(DV2)
         result = G.toarray()

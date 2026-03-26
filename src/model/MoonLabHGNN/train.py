@@ -9,7 +9,7 @@ import sys
 from torch import optim
 
 from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data, output_metrics_to_db
-from data.n_preprocessing import build_hypergraph_incidence_matrix, create_business_feature_matrix, create_label_vector, create_quality_matrix
+from data.n_preprocessing import build_hypergraph_incidence_matrix, create_business_feature_matrix, create_label_vector
 from utils.utils import generate_G_from_H
 from utils.utils import generate_G_from_H
 from .HGNN import HGNN
@@ -24,7 +24,7 @@ class Train_MoonLabHGNN:
 
     def train(self, num_epochs=100, 
             lr=0.001, 
-            hidden_layer_size=128, 
+            hidden_layer_size=256, 
             train_proportion=0.8, 
             dropout=0.5, 
             weight_decay=5e-4, 
