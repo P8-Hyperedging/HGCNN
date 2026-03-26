@@ -42,7 +42,7 @@ def load_yelp_dataset(train_percent = 0.025):
     node_list = []
     edge_list = []
     for hyperedge_id, (user_id, buseness_ids) in enumerate(user_to_business.items()):
-        for business_id in buseness_ids:
+        for business_id, stars in buseness_ids:
             if business_id in business_to_id:
                 node_id = business_to_id[business_id]
                 node_list.append(node_id)
