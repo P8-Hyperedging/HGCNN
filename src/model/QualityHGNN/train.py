@@ -186,7 +186,6 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
 
         if epoch % print_freq == 0:
             print(f'Best val Acc: {best_acc:4f}')
-            # show predictions vs distributions
 
     time_elapsed = time.time() - since
     print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
