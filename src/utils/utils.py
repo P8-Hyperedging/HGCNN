@@ -114,11 +114,8 @@ def _generate_G_from_H(H, variable_weight=False):
     HT = H.T
 
     if variable_weight:
-        print("DV")
         DV2_H = DV2.dot(H)
-        print("W_diag")
         invDE_HT_DV2 = invDE.dot(HT).dot(DV2)
-        print("result")
         result = (DV2_H, W_diag, invDE_HT_DV2)
     else:
         G = DV2.dot(H).dot(W_diag).dot(invDE).dot(HT).dot(DV2)
