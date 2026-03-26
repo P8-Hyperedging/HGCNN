@@ -142,4 +142,4 @@ def train_model_async(model: str, data: dict, job_id: str):
         traceback.print_exc()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5002)
