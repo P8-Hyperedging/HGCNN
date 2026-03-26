@@ -21,7 +21,7 @@ class Train_QHGNN:
         self.reviews = load_postgres_review_data()
 
     def train(self, num_epochs=100, 
-              lr=0.001, 
+              lr=0.009, 
               hidden_layer_size=256, 
               train_proportion=0.8, 
               dropout=0.5, 
@@ -64,22 +64,21 @@ class Train_QHGNN:
             print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
 
         n = len(businesses)
-        labeled_proportion = 0.1  # Only 10% labeled (semi-supervised)
-        labeled_size = int(n * labeled_proportion)
+        split = int(n * train_proportion)
 
-        labeled_indices = np.random.choice(n, labeled_size, replace=False)
+        training_range = np.arange(0, split)
+        testing_range = np.arange(split, n)
 
-        idx_train_labeled, idx_val_labeled = train_test_split(labeled_indices, test_size=0.4, random_state=42)
-        print(f"Total nodes: {n}, Labeled nodes: {labeled_size}, Train labeled: {len(idx_train_labeled)}, Val labeled: {len(idx_val_labeled)}")
+        print(f"Total nodes: {n}, Training nodes: {len(training_range)}, Testing nodes: {len(testing_range)}")
 
 
-        Q = diags(create_quality_matrix_from_H(self.reviews))
+        Q =  diags(create_quality_matrix_from_H(self.reviews))
         print(f"Q shape: {Q.shape}")
 
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
         # Generating G terms
 
-        G = DV2_H.dot(Q).dot(invDE_HT_DV2).toarray()
+        G = DV2_H.dot(W_diag).dot(invDE_HT_DV2).toarray()
         print(f"G shape: {G.shape}")
 
 
@@ -88,9 +87,8 @@ class Train_QHGNN:
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
         G = torch.Tensor(G).to(device)
-        Q = torch.Tensor(torch.ones_like(G)).to(device) # Placeholder, does nothing!
-        idx_train = torch.Tensor(idx_train_labeled).long().to(device)
-        idx_test = torch.Tensor(idx_val_labeled).long().to(device)
+        idx_train = torch.Tensor(training_range).long().to(device)
+        idx_test = torch.Tensor(testing_range).long().to(device)
 
         n_class = int(lbls.max()) + 1
 
@@ -106,7 +104,7 @@ class Train_QHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, Q=Q)
+        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=1, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -134,7 +132,7 @@ class Train_QHGNN:
         )
 
 
-def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, Q=None):
+def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -161,7 +159,7 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
-                outputs = model(fts, G, Q)
+                outputs = model(fts, G)
                 loss = criterion(outputs[idx], lbls[idx])
                 _, preds = torch.max(outputs, 1)
 
@@ -185,9 +183,10 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
 
+
         if epoch % print_freq == 0:
             print(f'Best val Acc: {best_acc:4f}')
-            print('-' * 20)
+            # show predictions vs distributions
 
     time_elapsed = time.time() - since
     print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')

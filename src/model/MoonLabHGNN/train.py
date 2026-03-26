@@ -24,7 +24,7 @@ class Train_MoonLabHGNN:
 
     def train(self, num_epochs=100, 
             lr=0.001, 
-            hidden_layer_size=128, 
+            hidden_layer_size=256, 
             train_proportion=0.8, 
             dropout=0.5, 
             weight_decay=5e-4, 
