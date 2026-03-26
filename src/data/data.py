@@ -159,8 +159,6 @@ def load_postgres_user_data(limit=200000):
 
 def load_postgres_review_data(db_table_name="az_user_reviews_over_4"):
     reviews = []
-    # SELECT review_id, user_id, business_id, stars FROM
-    # SELECT * FROM az_user_reviews_over_4 INNER JOIN review ON az_user_reviews_over_4.review_id %3D review.review_id
     with psycopg2.connect(**params) as conn:
         with conn.cursor() as cur:
             query = sql.SQL(
