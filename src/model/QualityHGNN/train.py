@@ -8,7 +8,7 @@ import sys
 
 import torch
 from model.QualityHGNN.QHGNN import QHGNN
-from sklearn.model_selection import train_test_split
+#from sklearn.model_selection import train_test_split
 from torch import device, optim, split
 
 from data.data import *

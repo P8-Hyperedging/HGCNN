@@ -32,7 +32,8 @@ class Train_MoonLabHGNN:
             milestones_input="50,100",
             model_name="MoonLabHGNN",
             job_id=None,
-            seed = -1
+            seed = -1,
+            logger=None
             ):
         total_runtime_start = time.time()
 
@@ -95,7 +96,7 @@ class Train_MoonLabHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G)
+        model_ft, valid_acc, train_runtime = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, logger=logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -122,7 +123,7 @@ class Train_MoonLabHGNN:
             job_id=job_id
         )
 
-def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None):
+def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, logger=None):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -130,8 +131,12 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
 
     for epoch in range(num_epochs):
         if epoch % print_freq == 0:
-            print('-' * 10)
-            print(f'Epoch {epoch}/{num_epochs - 1}')
+            msg = '-' * 10 + f'\nEpoch {epoch}/{num_epochs - 1}'
+            if logger:
+                logger(msg, job_id=job_id, progress=epoch)
+            else:
+                print(msg)
+
 
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
@@ -166,20 +171,45 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
             epoch_acc = running_corrects.double() / len(idx)
 
             if epoch % print_freq == 0:
-                print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+                msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
+
+                # Use logger if provided, else fallback to print
+                if logger:
+                    logger(msg, job_id=job_id, progress=epoch)
+                else:
+                    print(msg)
 
             # deep copy the model
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
 
-        if epoch % print_freq == 0:
-            print(f'Best val Acc: {best_acc:4f}')
-            print('-' * 20)
+            if epoch % print_freq == 0:
+                msg_best = f'Best val Acc: {best_acc:.4f}'
+                separator = '-' * 20
+
+                if logger:
+                    logger(msg_best, job_id=job_id, progress=epoch)
+                    logger(separator, job_id=job_id, progress=epoch)
+                else:
+                    print(msg_best)
+                    print(separator)
 
     time_elapsed = time.time() - since
-    print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-    print(f'Best val Acc: {best_acc:4f}')
+    # At the end of training
+    time_msg = f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s'
+    best_msg = f'Best val Acc: {best_acc:.4f}'
+
+    if logger:
+        # Send final messages
+        logger(time_msg, job_id=job_id, progress=num_epochs)
+        logger(best_msg, job_id=job_id, progress=num_epochs)
+    
+        # Optional: special final status so frontend knows training is finished
+        logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
+    else:
+        print(time_msg)
+        print(best_msg)
 
     # load best model weights
     model.load_state_dict(best_model_wts)
