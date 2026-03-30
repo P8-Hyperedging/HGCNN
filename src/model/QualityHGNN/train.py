@@ -31,7 +31,7 @@ class Train_QHGNN:
               model_name="QHGNN",
               job_id=None,
               seed = -1,
-              logger=None
+              socket_logger=None
               ):
         total_runtime_start = time.time()
 
@@ -105,7 +105,7 @@ class Train_QHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, logger=logger)
+        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -133,7 +133,7 @@ class Train_QHGNN:
         )
 
 
-def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, logger=None):
+def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -143,9 +143,9 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
         if epoch % print_freq == 0:
             seperator = '-' * 10
             msg = f'Epoch {epoch}/{num_epochs - 1}'
-            if logger:
-                logger(seperator, job_id=job_id, progress=epoch)
-                logger(msg, job_id=job_id, progress=epoch)
+            if socket_logger:
+                socket_logger(seperator, job_id=job_id, progress=epoch)
+                socket_logger(msg, job_id=job_id, progress=epoch)
             else:
                 print(seperator)
                 print(msg)
@@ -184,8 +184,8 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
 
             if epoch % print_freq == 0:
                 msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
-                if logger:
-                    logger(msg, job_id=job_id, progress=epoch)
+                if socket_logger:
+                    socket_logger(msg, job_id=job_id, progress=epoch)
                 else:
                     print(msg)
 
@@ -197,8 +197,8 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
 
         if epoch % print_freq == 0:
             msg = f'Best val Acc: {best_acc:4f}'
-            if logger:
-                logger(msg, job_id, progress=epoch)
+            if socket_logger:
+                socket_logger(msg, job_id, progress=epoch)
             else:
                 print(msg)
 
@@ -206,13 +206,13 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
     time_msg = f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s'
     best_msg = f'Best val Acc: {best_acc:.4f}'
 
-    if logger:
+    if socket_logger:
         # Send final messages
-        logger(time_msg, job_id=job_id, progress=num_epochs)
-        logger(best_msg, job_id=job_id, progress=num_epochs)
+        socket_logger(time_msg, job_id=job_id, progress=num_epochs)
+        socket_logger(best_msg, job_id=job_id, progress=num_epochs)
     
         # Optional: special final status so frontend knows training is finished
-        logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
+        socket_logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
     else:
         print(time_msg)
         print(best_msg)
