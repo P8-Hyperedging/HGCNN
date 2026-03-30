@@ -79,7 +79,7 @@ class Train(Resource):
             return {"error": "Model not found."}, 404
 
         int_fields = ["num_epochs", "hidden_layer_size", "seed"]
-        float_fields = ["lr", "train_proportion", "dropout", "weight_decay", "gamma"]
+        float_fields = ["lr", "train_proportion", "valid_proportion", "dropout", "weight_decay", "gamma"]
 
         parsed_data = {}
         for k, v in data.items():
@@ -148,7 +148,8 @@ def train_model_async(model: str, data: dict, job_id: str):
                     dropout=data.get("dropout", 0.0),
                     weight_decay=data.get("weight_decay", 0.0),
                     seed=data.get("seed", -1),
-                    job_id=job_id
+                    job_id=job_id,
+                    socket_logger=socket_logger
                 )
             case "moonlab":
                 trainer = Train_MoonLabHGNN()
