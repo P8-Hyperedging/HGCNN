@@ -131,10 +131,13 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
 
     for epoch in range(num_epochs):
         if epoch % print_freq == 0:
-            msg = '-' * 10 + f'\nEpoch {epoch}/{num_epochs - 1}'
+            seperator = '-' * 10
+            msg = f'\nEpoch {epoch}/{num_epochs - 1}'
             if logger:
+                logger(seperator, job_id=job_id, progress=epoch)
                 logger(msg, job_id=job_id, progress=epoch)
             else:
+                print(seperator)
                 print(msg)
 
 
