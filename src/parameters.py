@@ -42,40 +42,42 @@ Parameter = RangeParameter | InputParameter| ToggleParameter | SelectParameter |
 
 def get_allset_parameters() -> list[Parameter]:
     return [
-        InputParameter(name="Epoch", min=0, max=10000, default=500, type=InputType.INPUT),
-        InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
-        InputParameter(name="Hidden layers", min=0, max=256, default=64, type=InputType.INPUT),
-        InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
-        InputParameter(name="Validation proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
-        InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
-        InputParameter(name="Weight decay", min=0, max=1, default=0, type=InputType.INPUT),
-        InputParameter(name="Seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
+        InputParameter(name="num epochs", min=0, max=10000, default=500, type=InputType.INPUT),
+        InputParameter(name="lr", min=0, max=1, default=0.001, type=InputType.INPUT),
+        InputParameter(name="hidden layer size", min=0, max=256, default=64, type=InputType.INPUT),
+        InputParameter(name="train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="valid proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
+        InputParameter(name="dropout", min=0, max=1, default=0, type=InputType.INPUT),
+        InputParameter(name="weight decay", min=0, max=1, default=0, type=InputType.INPUT),
+        InputParameter(name="seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
     ]
+
 
 def get_moonlab_parameters() -> list[Parameter]:
     return [
-        InputParameter(name="Epoch", min=0, max=10000, default=500, type=InputType.INPUT),
-        InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
-        InputParameter(name="Hidden layers size", min=1, max=4096, default=128, type=InputType.INPUT),
-        InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
-        InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
-        InputParameter(name="Weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
-        InputParameter(name="Gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
-        TextInputParameter(name="Learning milestone", placeholder="50,100", type=InputType.Text),
-        InputParameter(name="Seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
+        InputParameter(name="num epochs", min=0, max=10000, default=500, type=InputType.INPUT),
+        InputParameter(name="lr", min=0, max=1, default=0.001, type=InputType.INPUT),
+        InputParameter(name="hidden layer size", min=1, max=4096, default=128, type=InputType.INPUT),
+        InputParameter(name="train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="dropout", min=0, max=1, default=0, type=InputType.INPUT),
+        InputParameter(name="weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
+        InputParameter(name="gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
+        TextInputParameter(name="milestones input", placeholder="50,100", type=InputType.Text),
+        InputParameter(name="seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
     ]
+
 
 def get_qhgnn_parameters() -> list[Parameter]:
     return [
-        InputParameter(name="Epoch", min=0, max=10000, default=500, type=InputType.INPUT),
-        InputParameter(name="Learning rate", min=0, max=1, default=0.001, type=InputType.INPUT),
-        InputParameter(name="Hidden layers size", min=1, max=4096, default=128, type=InputType.INPUT),
-        InputParameter(name="Train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
-        InputParameter(name="Dropout", min=0, max=1, default=0, type=InputType.INPUT),
-        InputParameter(name="Weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
-        InputParameter(name="Gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
-        InputParameter(name="Learning milestone", min=0, max=200, default=50, type=InputType.INPUT),
-        InputParameter(name="Seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
+        InputParameter(name="num epochs", min=0, max=10000, default=500, type=InputType.INPUT),
+        InputParameter(name="lr", min=0, max=1, default=0.001, type=InputType.INPUT),
+        InputParameter(name="hidden layer size", min=1, max=4096, default=128, type=InputType.INPUT),
+        InputParameter(name="train proportion", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="dropout", min=0, max=1, default=0, type=InputType.INPUT),
+        InputParameter(name="weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
+        InputParameter(name="gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
+        InputParameter(name="milestones input", min=0, max=200, default=50, type=InputType.INPUT),
+        InputParameter(name="seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
     ]
 
 

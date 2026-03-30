@@ -115,7 +115,8 @@ class Train_AllSetTransformer:
               dropout=0.5, 
               model_name = 'AllSetTransformer',
               job_id = None,
-              seed = -1
+              seed = -1,
+              socket_logger=None
               ):
         total_start_time = time.time()
 
@@ -206,13 +207,27 @@ class Train_AllSetTransformer:
                 logger.add_result(run, result[:3])
         
                 if epoch % self.display_step == 0 and self.display_step > 0:
-                    print(f'Epoch: {epoch:01d}, '
-                        f'Train Loss: {loss:.4f}, '
-                        f'Valid Loss: {result[4]:.4f}, '
-                        f'Test  Loss: {result[5]:.4f}, '
-                        f'Train Acc: {100 * result[0]:.2f}%, '
-                        f'Valid Acc: {100 * result[1]:.2f}%, '
-                        f'Test  Acc: {100 * result[2]:.2f}%')
+                    epoch = f"Epoch: {epoch:01d}"
+                    loss = (
+                        f"Train Loss: {loss:.4f}, "
+                        f"Valid Loss: {result[4]:.4f}, "
+                        f"Test  Loss: {result[5]:.4f}, "
+                    )
+                    accuracy = (
+                        f"Train Acc: {100 * result[0]:.2f}%, "
+                        f"Valid Acc: {100 * result[1]:.2f}%, "
+                        f"Test  Acc: {100 * result[2]:.2f}%"
+                    )
+
+                    if socket_logger:
+                        socket_logger(epoch, job_id=job_id, progress=epoch)
+                        socket_logger(loss, job_id=job_id, progress=epoch)
+                        socket_logger(accuracy, job_id=job_id, progress=epoch)
+                    else:
+                        print(epoch)
+                        print(loss)
+                        print(accuracy)
+
             train_acc = 100*result[0]
             valid_acc = 100*result[1]
             test_acc = 100*result[2]
@@ -221,6 +236,9 @@ class Train_AllSetTransformer:
 
         
         total_runtime = time.time() - total_start_time
+        time_msg = f'Training complete in {total_runtime // 60:.0f}m {total_runtime % 60:.0f}s'
+        if socket_logger:
+            socket_logger(time_msg, job_id=job_id, progress=num_epochs)
 
         parameters = {
             "Hidden Layer Size": hidden_layer_size,

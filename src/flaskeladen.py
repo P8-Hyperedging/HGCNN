@@ -1,14 +1,19 @@
 from flask import Flask, jsonify, request
-from flask_restx import Api, Resource, fields, Namespace
+from flask_restx import Api, Resource, fields
+from flask_socketio import SocketIO
+from job_store import jobs, jobs_lock
 from model.QualityHGNN.train import Train_QHGNN
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 from model.AllSetTransformer.train import Train_AllSetTransformer
 from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, serialize
+import time
 import threading
 from datetime import datetime
 import traceback
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = 'secret!'
+socketio = SocketIO(app, cors_allowed_origins="*")
 api = Api(app, version='1.0', title='HGCNN API',
           description='Hypergraph Neural Network Training API',
           doc='/docs')
@@ -73,11 +78,23 @@ class Train(Resource):
         if model not in options:
             return {"error": "Model not found."}, 404
 
+        int_fields = ["num_epochs", "hidden_layer_size", "seed"]
+        float_fields = ["lr", "train_proportion", "valid_proportion", "dropout", "weight_decay", "gamma"]
+
+        parsed_data = {}
+        for k, v in data.items():
+            if k in int_fields:
+                parsed_data[k] = int(v)
+            elif k in float_fields:
+                parsed_data[k] = float(v)
+            else:
+                parsed_data[k] = v
+
         # Generate unique job ID
         job_id = f"{model}_{datetime.now().timestamp()}"
 
         # Start training in background thread
-        thread = threading.Thread(target=train_model_async, args=(model, data, job_id))
+        thread = threading.Thread(target=train_model_async, args=(model, parsed_data, job_id))
         thread.daemon = True
         thread.start()
 
@@ -87,6 +104,12 @@ class Train(Resource):
             "job_id": job_id
         }, 202
 
+def background_thread():
+    count = 0
+    while True:
+        time.sleep(1)
+        count += 1
+        socketio.emit('live_update', {'count': count})
 
 def train_model_async(model: str, data: dict, job_id: str):
     """Run model training in a background thread"""
@@ -111,7 +134,8 @@ def train_model_async(model: str, data: dict, job_id: str):
                     gamma=data.get("gamma", 0.5),
                     milestones_input=data.get("milestones_input", "50,100"),
                     seed=data.get("seed", -1),
-                    job_id=job_id
+                    job_id=job_id,
+                    logger=socket_logger
                 )
             case "allset":
                 trainer = Train_AllSetTransformer()
@@ -124,7 +148,8 @@ def train_model_async(model: str, data: dict, job_id: str):
                     dropout=data.get("dropout", 0.0),
                     weight_decay=data.get("weight_decay", 0.0),
                     seed=data.get("seed", -1),
-                    job_id=job_id
+                    job_id=job_id,
+                    socket_logger=socket_logger
                 )
             case "moonlab":
                 trainer = Train_MoonLabHGNN()
@@ -138,7 +163,8 @@ def train_model_async(model: str, data: dict, job_id: str):
                     gamma=data.get("gamma", 0.5),
                     milestones_input=data.get("milestones_input", "50,100"),
                     seed=data.get("seed", -1),
-                    job_id=job_id
+                    job_id=job_id,
+                    logger=socket_logger
                 )
 
     except Exception as e:
@@ -146,5 +172,46 @@ def train_model_async(model: str, data: dict, job_id: str):
         print(f"Error: {str(e)}")
         traceback.print_exc()
 
+def socket_logger(message, job_id=None, progress=None):
+    with jobs_lock:
+        if job_id not in jobs:
+            jobs[job_id] = {"progress": 0, "logs": []}
+
+        if progress is not None:
+            jobs[job_id]["progress"] = progress
+
+        jobs[job_id]["logs"].append(message)
+
+    socketio.emit(
+        "job_update",
+        {
+            "job_id": job_id,
+            "message": message,
+            "progress": progress
+        }
+    )
+
+    print(message)  # optional but useful
+
+@socketio.on("subscribe_job")
+def handle_subscribe(data):
+    job_id = data.get("job_id")
+    if not job_id:
+        return
+
+    # Send current job history to this client
+    with jobs_lock:
+        job = jobs.get(job_id, {"progress": 0, "logs": []})
+
+    for msg in job["logs"]:
+        socketio.emit(
+            "job_update",
+            {"job_id": job_id, "message": msg, "progress": job["progress"]},
+        )
+
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    thread = threading.Thread(target=background_thread)
+    thread.daemon = True
+    thread.start()
+    
+    socketio.run(app, port=5002)

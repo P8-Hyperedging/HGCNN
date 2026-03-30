@@ -8,7 +8,7 @@ import sys
 
 import torch
 from model.QualityHGNN.QHGNN import QHGNN
-from sklearn.model_selection import train_test_split
+#from sklearn.model_selection import train_test_split
 from torch import device, optim, split
 
 from data.data import *
@@ -30,7 +30,8 @@ class Train_QHGNN:
               milestones_input="50,100",
               model_name="QHGNN",
               job_id=None,
-              seed = -1
+              seed = -1,
+              socket_logger=None
               ):
         total_runtime_start = time.time()
 
@@ -104,7 +105,7 @@ class Train_QHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G)
+        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -132,7 +133,7 @@ class Train_QHGNN:
         )
 
 
-def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None):
+def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -140,8 +141,14 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
 
     for epoch in range(num_epochs):
         if epoch % print_freq == 0:
-            print('-' * 10)
-            print(f'Epoch {epoch}/{num_epochs - 1}')
+            seperator = '-' * 10
+            msg = f'Epoch {epoch}/{num_epochs - 1}'
+            if socket_logger:
+                socket_logger(seperator, job_id=job_id, progress=epoch)
+                socket_logger(msg, job_id=job_id, progress=epoch)
+            else:
+                print(seperator)
+                print(msg)
 
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
@@ -176,7 +183,11 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             epoch_acc = running_corrects.double() / len(idx)
 
             if epoch % print_freq == 0:
-                print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+                msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
+                if socket_logger:
+                    socket_logger(msg, job_id=job_id, progress=epoch)
+                else:
+                    print(msg)
 
             # deep copy the model
             if phase == 'val' and epoch_acc > best_acc:
@@ -185,11 +196,26 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
 
 
         if epoch % print_freq == 0:
-            print(f'Best val Acc: {best_acc:4f}')
+            msg = f'Best val Acc: {best_acc:4f}'
+            if socket_logger:
+                socket_logger(msg, job_id, progress=epoch)
+            else:
+                print(msg)
 
     time_elapsed = time.time() - since
-    print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-    print(f'Best val Acc: {best_acc:4f}')
+    time_msg = f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s'
+    best_msg = f'Best val Acc: {best_acc:.4f}'
+
+    if socket_logger:
+        # Send final messages
+        socket_logger(time_msg, job_id=job_id, progress=num_epochs)
+        socket_logger(best_msg, job_id=job_id, progress=num_epochs)
+    
+        # Optional: special final status so frontend knows training is finished
+        socket_logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
+    else:
+        print(time_msg)
+        print(best_msg)
 
     # load best model weights
     model.load_state_dict(best_model_wts)
