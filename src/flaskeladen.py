@@ -78,7 +78,7 @@ class Train(Resource):
         if model not in options:
             return {"error": "Model not found."}, 404
         
-        if model == "allset" and data.get("valid_proportion") + data.get("train_proportion") > 1.0:
+        if model == "allset" and float(data.get("valid_proportion", 0.25)) + float(data.get("train_proportion", 0.5)) > 1.0:
             return {"error": "Train proportion and valid proportion must sum to 1 or less."}, 400
 
         int_fields = ["num_epochs", "hidden_layer_size", "seed"]
