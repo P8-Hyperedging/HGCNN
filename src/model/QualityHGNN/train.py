@@ -30,12 +30,12 @@ class Train_QHGNN:
               milestones_input="50,100",
               model_name="QHGNN",
               job_id=None,
-              seed = -1,
+              seed = None,
               socket_logger=None
               ):
         total_runtime_start = time.time()
 
-        if seed == -1:
+        if seed == None:
             rng = np.random.default_rng()
             seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
 

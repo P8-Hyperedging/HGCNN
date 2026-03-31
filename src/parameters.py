@@ -15,7 +15,7 @@ class BaseParameter:
 
 @dataclass
 class RangeParameter(BaseParameter):
-    min: float
+    min: float | None
     max: float
     step: float
     default: float
@@ -49,7 +49,7 @@ def get_allset_parameters() -> list[Parameter]:
         InputParameter(name="valid proportion", min=0, max=1, default=0.25, type=InputType.INPUT),
         InputParameter(name="dropout", min=0, max=1, default=0, type=InputType.INPUT),
         InputParameter(name="weight decay", min=0, max=1, default=0, type=InputType.INPUT),
-        InputParameter(name="seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
+        InputParameter(name="seed", min=0, max=2**32-1, default=None, type=InputType.INPUT),
     ]
 
 
@@ -63,7 +63,7 @@ def get_moonlab_parameters() -> list[Parameter]:
         InputParameter(name="weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
         InputParameter(name="gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
         TextInputParameter(name="milestones input", placeholder="50,100", type=InputType.Text),
-        InputParameter(name="seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
+        InputParameter(name="seed", min=0, max=2**32-1, default=None, type=InputType.INPUT),
     ]
 
 
@@ -77,7 +77,7 @@ def get_qhgnn_parameters() -> list[Parameter]:
         InputParameter(name="weight decay", min=0, max=1, default=0.0005, type=InputType.INPUT),
         InputParameter(name="gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
         InputParameter(name="milestones input", min=0, max=200, default=50, type=InputType.INPUT),
-        InputParameter(name="seed", min=-1, max=2**32-1, default=-1, type=InputType.INPUT),
+        InputParameter(name="seed", min=0, max=2**32-1, default=None, type=InputType.INPUT),
     ]
 
 
