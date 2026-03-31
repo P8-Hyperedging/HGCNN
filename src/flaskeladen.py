@@ -114,6 +114,27 @@ def background_thread():
         count += 1
         socketio.emit('live_update', {'count': count})
 
+def socket_logger(message, job_id=None, progress=None):
+    with jobs_lock:
+        if job_id not in jobs:
+            jobs[job_id] = {"progress": 0, "logs": []}
+
+        if progress is not None:
+            jobs[job_id]["progress"] = progress
+
+        jobs[job_id]["logs"].append(message)
+
+    socketio.emit(
+        "job_update",
+        {
+            "job_id": job_id,
+            "message": message,
+            "progress": progress
+        }
+    )
+
+    print(message)  # optional but useful
+
 def train_model_async(model: str, data: dict, job_id: str):
     """Run model training in a background thread"""
     training_jobs[job_id] = {
@@ -138,7 +159,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                     milestones_input=data.get("milestones_input", "50,100"),
                     seed=data.get("seed"),
                     job_id=job_id,
-                    logger=socket_logger
+                    socket_logger=socket_logger
                 )
             case "allset":
                 trainer = Train_AllSetTransformer()
@@ -167,34 +188,13 @@ def train_model_async(model: str, data: dict, job_id: str):
                     milestones_input=data.get("milestones_input", "50,100"),
                     seed=data.get("seed"),
                     job_id=job_id,
-                    logger=socket_logger
+                    socket_logger=socket_logger
                 )
 
     except Exception as e:
         print("Oops")
         print(f"Error: {str(e)}")
         traceback.print_exc()
-
-def socket_logger(message, job_id=None, progress=None):
-    with jobs_lock:
-        if job_id not in jobs:
-            jobs[job_id] = {"progress": 0, "logs": []}
-
-        if progress is not None:
-            jobs[job_id]["progress"] = progress
-
-        jobs[job_id]["logs"].append(message)
-
-    socketio.emit(
-        "job_update",
-        {
-            "job_id": job_id,
-            "message": message,
-            "progress": progress
-        }
-    )
-
-    print(message)  # optional but useful
 
 @socketio.on("subscribe_job")
 def handle_subscribe(data):
