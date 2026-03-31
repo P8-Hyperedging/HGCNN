@@ -8,7 +8,8 @@ import sys
 
 import torch
 from model.QualityHGNN.QHGNN import QHGNN
-from torch import optim, split
+#from sklearn.model_selection import train_test_split
+from torch import device, optim, split
 
 from data.data import *
 from data.n_preprocessing import *
@@ -20,8 +21,8 @@ class Train_QHGNN:
         self.reviews = load_postgres_review_data()
 
     def train(self, num_epochs=100, 
-              lr=0.001, 
-              hidden_layer_size=128, 
+              lr=0.009, 
+              hidden_layer_size=256, 
               train_proportion=0.8, 
               dropout=0.5, 
               weight_decay=5e-4, 
@@ -29,7 +30,8 @@ class Train_QHGNN:
               milestones_input="50,100",
               model_name="QHGNN",
               job_id=None,
-              seed = None
+              seed = None,
+              socket_logger=None
               ):
         total_runtime_start = time.time()
 
@@ -46,6 +48,8 @@ class Train_QHGNN:
             torch.backends.cudnn.benchmark = False
 
         H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(self.reviews)
+        print(f"H shape: {H.shape}")
+
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)
 
@@ -54,17 +58,28 @@ class Train_QHGNN:
 
         lv = create_label_vector(businesses)
 
+        # Print label distribution
+        unique, counts = np.unique(lv, return_counts=True)
+        print("Label distribution:")
+        for label, count in zip(unique, counts):
+            print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
+
         n = len(businesses)
         split = int(n * train_proportion)
 
         training_range = np.arange(0, split)
         testing_range = np.arange(split, n)
 
-        print(f"Training range: {0} - {split}, Testing range: {split+1} - {2*split}")
+        print(f"Total nodes: {n}, Training nodes: {len(training_range)}, Testing nodes: {len(testing_range)}")
 
-        print(f"H shape: {H.shape}")
 
-        G = generate_G_from_H(H)
+        Q =  diags(create_quality_matrix_from_H(self.reviews))
+        print(f"Q shape: {Q.shape}")
+
+        (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
+        # Generating G terms
+
+        G = DV2_H.dot(W_diag).dot(invDE_HT_DV2).toarray()
         print(f"G shape: {G.shape}")
 
 
@@ -73,7 +88,6 @@ class Train_QHGNN:
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
         G = torch.Tensor(G).to(device)
-        Q = create_quality_matrix(G).to(device)
         idx_train = torch.Tensor(training_range).long().to(device)
         idx_test = torch.Tensor(testing_range).long().to(device)
 
@@ -91,7 +105,7 @@ class Train_QHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, Q=Q)
+        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -119,7 +133,7 @@ class Train_QHGNN:
         )
 
 
-def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, Q=None):
+def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -127,8 +141,14 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
 
     for epoch in range(num_epochs):
         if epoch % print_freq == 0:
-            print('-' * 10)
-            print(f'Epoch {epoch}/{num_epochs - 1}')
+            seperator = '-' * 10
+            msg = f'Epoch {epoch}/{num_epochs - 1}'
+            if socket_logger:
+                socket_logger(seperator, job_id=job_id, progress=epoch)
+                socket_logger(msg, job_id=job_id, progress=epoch)
+            else:
+                print(seperator)
+                print(msg)
 
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
@@ -146,7 +166,7 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
-                outputs = model(fts, G, Q)
+                outputs = model(fts, G)
                 loss = criterion(outputs[idx], lbls[idx])
                 _, preds = torch.max(outputs, 1)
 
@@ -163,20 +183,39 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             epoch_acc = running_corrects.double() / len(idx)
 
             if epoch % print_freq == 0:
-                print(f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}')
+                msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
+                if socket_logger:
+                    socket_logger(msg, job_id=job_id, progress=epoch)
+                else:
+                    print(msg)
 
             # deep copy the model
             if phase == 'val' and epoch_acc > best_acc:
                 best_acc = epoch_acc
                 best_model_wts = copy.deepcopy(model.state_dict())
 
+
         if epoch % print_freq == 0:
-            print(f'Best val Acc: {best_acc:4f}')
-            print('-' * 20)
+            msg = f'Best val Acc: {best_acc:4f}'
+            if socket_logger:
+                socket_logger(msg, job_id, progress=epoch)
+            else:
+                print(msg)
 
     time_elapsed = time.time() - since
-    print(f'\nTraining complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s')
-    print(f'Best val Acc: {best_acc:4f}')
+    time_msg = f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s'
+    best_msg = f'Best val Acc: {best_acc:.4f}'
+
+    if socket_logger:
+        # Send final messages
+        socket_logger(time_msg, job_id=job_id, progress=num_epochs)
+        socket_logger(best_msg, job_id=job_id, progress=num_epochs)
+    
+        # Optional: special final status so frontend knows training is finished
+        socket_logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
+    else:
+        print(time_msg)
+        print(best_msg)
 
     # load best model weights
     model.load_state_dict(best_model_wts)

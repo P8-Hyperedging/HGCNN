@@ -72,7 +72,7 @@ def test_generate_G_from_H_symmetric():
 def test_generate_G_from_H_variable_weight_reconstruction():
     G_direct = _generate_G_from_H(H, variable_weight=False)
     DV2_H, W, invDE_HT_DV2 = _generate_G_from_H(H, variable_weight=True)
-    G_parts = DV2_H @ W @ invDE_HT_DV2
+    G_parts = DV2_H.toarray() @ W.toarray() @ invDE_HT_DV2.toarray()
 
     assert np.allclose(G_direct, G_parts)
 

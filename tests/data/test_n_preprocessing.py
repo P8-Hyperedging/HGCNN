@@ -12,6 +12,7 @@ def create_reviews(user_business_pairs):
         reviews.append({
             "review_id": review_id,
             "user_id": user_id,
+            "stars": 5,  
             "business_id": business_id
         })
         review_id += 1

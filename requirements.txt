@@ -7,3 +7,4 @@ scipy
 pytest
 psycopg2-binary
 flask-restx
+scikit-learn

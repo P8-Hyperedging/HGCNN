@@ -3,25 +3,13 @@ from collections import defaultdict
 from data.data import group_reviews_by_user, Business
 from data.data import OpeningHours
 import torch
+from utils.qualityutils import *
 
 def build_hypergraph_incidence_matrix(reviews):
     """ Builds a hypergraph incidence matrix H. Rows/nodes are businesses, columns/hyperedges are users. 
     H[i, j] = 1 if business i was reviewed by user j. """
 
-    # group businesses by user
-    user_to_businesses = group_reviews_by_user(reviews)
-
-    # collect all unique business IDs
-    business_ids_set = set()
-    for businesses in user_to_businesses.values():
-        business_ids_set.update(businesses)
-
-    business_ids = list(business_ids_set)
-
-    # assign each business a row index
-    business_to_idx = {}
-    for i in range(len(business_ids)):
-        business_to_idx[business_ids[i]] = i
+    business_ids, business_to_idx, user_to_businesses = get_business_id_mapping(reviews)
 
     # matrix size
     num_nodes = len(business_ids)
@@ -34,12 +22,31 @@ def build_hypergraph_incidence_matrix(reviews):
     user_column = 0
     for user_id in user_to_businesses:
         reviewed_businesses = user_to_businesses[user_id]
-        for business_id in reviewed_businesses:
+        for business_id, stars in reviewed_businesses:
             business_row = business_to_idx[business_id]
             H[business_row, user_column] = 1
         user_column += 1
 
     return H, business_ids, business_to_idx
+
+def get_business_id_mapping(reviews):
+    # group businesses by user
+    user_to_businesses = group_reviews_by_user(reviews)
+
+    # collect all unique business IDs
+    business_ids_set = set()
+    for businesses in user_to_businesses.values():
+       for business_id, stars in businesses:
+            business_ids_set.add(business_id)
+
+    business_ids = list(business_ids_set)
+
+    # assign each business a row index
+    business_to_idx = {}
+    for i in range(len(business_ids)):
+        business_to_idx[business_ids[i]] = i
+
+    return business_ids, business_to_idx, user_to_businesses
 
 def get_opening_hours_vector(business_hours : OpeningHours):
     '''Extracts opening hours information from a business and encodes it as a vector.'''
@@ -55,17 +62,40 @@ def get_opening_hours_vector(business_hours : OpeningHours):
 
     return oh_features
 
-# Should probably use businesses and reviews as parameters
-def create_quality_matrix(G):
-    # Add rules for determining quality of hyperedges here.
-    # Idea 1: Businesses with low review count get lower aggregation contribution (lower weight).
-    # (this is probably already the case because of the laplacian normalization, 
-    # but we could also explicitly add it as a weight, idk its a blackbox).
-    # Idea 2: Users who review many businesses get lower aggregation contribution 
-    # Idea 3: Use variance or other statistical measure of the ratings given by a user as a weight 
-    # (users with more consistent ratings could be more reliable(or less!)).
+def reviews_from_user(user_id, reviews):
+    result = []
+    for r in reviews:
+        if r['user_id'] == user_id:
+            result.append(r)
+    return result
+
+# Matrix is N X E, where N is number of nodes (businesses) and E is number of hyperedges (users).
+def create_quality_matrix_from_H(reviews):
+    business_ids, business_to_idx, user_to_businesses = get_business_id_mapping(reviews)
     
-    return torch.ones_like(G) # Placeholder, does nothing!
+    user_reviews_map = {}
+    for review in reviews:
+        user_id = review['user_id']
+        if user_id not in user_reviews_map:
+            user_reviews_map[user_id] = []
+        user_reviews_map[user_id].append(review)
+
+    num_hyperedges = len(user_to_businesses)
+    W = np.zeros(num_hyperedges, dtype=float) # array which represents diagonal matrix.
+
+    for user_column, user_id in enumerate(user_to_businesses):
+        if user_column % 1000 == 0:
+            print(f"Calculating quality scores for each hyperedge... ({user_column+1}/{num_hyperedges})")
+        
+        user_reviews = user_reviews_map[user_id]
+        mean = calculate_mean_stars(user_reviews)
+        variance = calculate_review_variance(user_reviews, mean) + 1e-5 # avoid division by zero
+        
+        W[user_column] = 1 / variance
+
+    return W 
+
+# Should probably use businesses and reviews as parameters
 
 def create_business_feature_matrix(businesses: list[Business], opening_hours):
     nodes = len(businesses)
@@ -91,11 +121,6 @@ def create_label_vector(businesses):
     labels = np.zeros(len(businesses))
     for i in range(len(businesses)):
         b = businesses[i]
-        if b.stars >= 4.0:
-            labels[i] = 2
-        elif b.stars >= 3.0:
-            labels[i] = 1
-        else:
-            labels[i] = 0
+        labels[i] = round(b.stars * 2)
         
     return labels
