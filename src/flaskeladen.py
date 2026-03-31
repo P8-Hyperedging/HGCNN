@@ -3,7 +3,7 @@ from flask_restx import Api, Resource, fields, Namespace
 from model.QualityHGNN.train import Train_QHGNN
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 from model.AllSetTransformer.train import Train_AllSetTransformer
-from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, get_parameters, serialize
+from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, serialize
 import threading
 from datetime import datetime
 import traceback
@@ -27,7 +27,7 @@ train_params_model = api.model('TrainParameters', {
     'weight_decay': fields.Float(default=5e-4, description='L2 regularization parameter'),
     'gamma': fields.Float(default=0.5, description='Learning rate decay factor'),
     'milestones_input': fields.String(default='50,100', description='Comma-separated epoch milestones for LR decay'),
-    'seed': fields.Integer(default=-1, description='Set seed for reproducibility (use -1 for random)'),
+    'seed': fields.Integer(default="Delete or set integer", description='Optinally set a seed for reproducibility'),
 })
 
 model_option_model = api.model('ModelOption', {
@@ -61,7 +61,7 @@ class Parameters(Resource):
             case "qhgnn":
                 return jsonify(serialize(get_qhgnn_parameters()))
             case _:
-                return jsonify(serialize(get_parameters()))
+                return {"error": "Model not found."}, 404
 
 @api.route("/train/<model>")
 class Train(Resource):
@@ -72,6 +72,9 @@ class Train(Resource):
 
         if model not in options:
             return {"error": "Model not found."}, 404
+        
+        if model == "allset" and data.get("valid_proportion") + data.get("train_proportion") > 1.0:
+            return {"error": "Train proportion and valid proportion must sum to 1 or less."}, 400
 
         # Generate unique job ID
         job_id = f"{model}_{datetime.now().timestamp()}"
@@ -110,7 +113,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                     weight_decay=data.get("weight_decay", 5e-4),
                     gamma=data.get("gamma", 0.5),
                     milestones_input=data.get("milestones_input", "50,100"),
-                    seed=data.get("seed", -1),
+                    seed=data.get("seed"),
                     job_id=job_id
                 )
             case "allset":
@@ -123,7 +126,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                     valid_proportion=data.get("valid_proportion", 0.25),
                     dropout=data.get("dropout", 0.0),
                     weight_decay=data.get("weight_decay", 0.0),
-                    seed=data.get("seed", -1),
+                    seed=data.get("seed"),
                     job_id=job_id
                 )
             case "moonlab":
@@ -137,7 +140,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                     weight_decay=data.get("weight_decay", 5e-4),
                     gamma=data.get("gamma", 0.5),
                     milestones_input=data.get("milestones_input", "50,100"),
-                    seed=data.get("seed", -1),
+                    seed=data.get("seed"),
                     job_id=job_id
                 )
 

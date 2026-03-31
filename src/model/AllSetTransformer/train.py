@@ -115,11 +115,11 @@ class Train_AllSetTransformer:
               dropout=0.5, 
               model_name = 'AllSetTransformer',
               job_id = None,
-              seed = -1
+              seed = None
               ):
         total_start_time = time.time()
 
-        if seed == -1:
+        if seed == None:
             rng = np.random.default_rng()
             seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
         
