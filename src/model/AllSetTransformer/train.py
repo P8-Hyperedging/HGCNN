@@ -102,7 +102,7 @@ class Train_AllSetTransformer:
         self.GPR = False
         self.LearnMask = False
         self.PMA = True
-        self.display_step = 100
+        self.display_step = 10
         self.runs = 1
 
     def train(self, 
