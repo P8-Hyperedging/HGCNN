@@ -105,7 +105,7 @@ class Train_QHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=logger)
+        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=socket_logger)
 
         total_runtime = time.time() - total_runtime_start
 
