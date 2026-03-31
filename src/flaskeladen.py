@@ -217,4 +217,4 @@ if __name__ == "__main__":
     thread.daemon = True
     thread.start()
     
-    socketio.run(app, port=5002)
+    socketio.run(app, host='0.0.0.0', port=5002)
