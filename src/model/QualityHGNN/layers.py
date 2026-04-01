@@ -3,6 +3,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
+from torchgen import local
+from utils.qualityutils import calculate_centroid, calculate_centroid_torch, calculate_total_distance_to_centroid, calculate_total_distance_to_centroid_torch
 
 
 class QHGNN_conv(nn.Module):
@@ -23,15 +25,29 @@ class QHGNN_conv(nn.Module):
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
         
-        # We start with ZEROS!!, so the model is more consistent for development.
-
-    def forward(self, x: torch.Tensor, G: torch.Tensor):
+    def forward(self, x: torch.Tensor, LS: torch.tensor, Q: torch.Tensor, RS: torch.Tensor):
         x = x.matmul(self.weight) 
         # Create new feature matrix by multiplying with learnable weights.
         if self.bias is not None:
             x = x + self.bias
-        
-        # Multiply the feature matrix x with modified laplacian (aggregation)
+
+        Q_updated = Q.clone()
+        for i in range(LS.shape[1]): 
+            node_mask = LS[:, i] > 0 
+            node_indices = torch.nonzero(node_mask).squeeze() 
+            
+            # Handle case where only one node is in the hyperedge
+            if node_indices.dim() == 0:  # Single node case
+                feature_matrix = x[node_indices].unsqueeze(0)  # Make it 2D: (1, features)
+            else:
+                feature_matrix = x[node_indices]
+            
+            centroid = calculate_centroid_torch(feature_matrix)
+            total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid) + 1e-8  # avoid division by zero
+            
+            Q_updated[i, i] = (1 / total_distance) * Q[i, i] 
+        G = LS.matmul(Q_updated).matmul(RS) # G = DV2_H.dot(W_diag).dot(invDE_HT_DV2)
+
         x = G.matmul(x)
-        return x
+        return x # Return both Q and x
 

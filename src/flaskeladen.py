@@ -138,7 +138,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                     milestones_input=data.get("milestones_input", "50,100"),
                     seed=data.get("seed"),
                     job_id=job_id,
-                    logger=socket_logger
+                    socket_logger=socket_logger
                 )
             case "allset":
                 trainer = Train_AllSetTransformer()
