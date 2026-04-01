@@ -78,7 +78,7 @@ class Train(Resource):
         if model not in options:
             return {"error": "Model not found."}, 404
         
-        if model == "allset" and data.get("valid_proportion") + data.get("train_proportion") > 1.0:
+        if model == "allset" and float(data.get("valid_proportion", 0.25)) + float(data.get("train_proportion", 0.5)) > 1.0:
             return {"error": "Train proportion and valid proportion must sum to 1 or less."}, 400
 
         int_fields = ["num_epochs", "hidden_layer_size", "seed"]
@@ -113,6 +113,27 @@ def background_thread():
         time.sleep(1)
         count += 1
         socketio.emit('live_update', {'count': count})
+
+def socket_logger(message, job_id=None, progress=None):
+    with jobs_lock:
+        if job_id not in jobs:
+            jobs[job_id] = {"progress": 0, "logs": []}
+
+        if progress is not None:
+            jobs[job_id]["progress"] = progress
+
+        jobs[job_id]["logs"].append(message)
+
+    socketio.emit(
+        "job_update",
+        {
+            "job_id": job_id,
+            "message": message,
+            "progress": progress
+        }
+    )
+
+    print(message)  # optional but useful
 
 def train_model_async(model: str, data: dict, job_id: str):
     """Run model training in a background thread"""
@@ -167,34 +188,13 @@ def train_model_async(model: str, data: dict, job_id: str):
                     milestones_input=data.get("milestones_input", "50,100"),
                     seed=data.get("seed"),
                     job_id=job_id,
-                    logger=socket_logger
+                    socket_logger=socket_logger
                 )
 
     except Exception as e:
         print("Oops")
         print(f"Error: {str(e)}")
         traceback.print_exc()
-
-def socket_logger(message, job_id=None, progress=None):
-    with jobs_lock:
-        if job_id not in jobs:
-            jobs[job_id] = {"progress": 0, "logs": []}
-
-        if progress is not None:
-            jobs[job_id]["progress"] = progress
-
-        jobs[job_id]["logs"].append(message)
-
-    socketio.emit(
-        "job_update",
-        {
-            "job_id": job_id,
-            "message": message,
-            "progress": progress
-        }
-    )
-
-    print(message)  # optional but useful
 
 @socketio.on("subscribe_job")
 def handle_subscribe(data):
@@ -217,4 +217,4 @@ if __name__ == "__main__":
     thread.daemon = True
     thread.start()
     
-    socketio.run(app, port=5002)
+    socketio.run(app, host='0.0.0.0', port=5002)

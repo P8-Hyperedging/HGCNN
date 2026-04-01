@@ -102,7 +102,7 @@ class Train_AllSetTransformer:
         self.GPR = False
         self.LearnMask = False
         self.PMA = True
-        self.display_step = 100
+        self.display_step = 10
         self.runs = 1
 
     def train(self, 
@@ -170,7 +170,7 @@ class Train_AllSetTransformer:
         self.Classifier_hidden = hidden_layer_size
         
         model = parse_method(self, data)
-        device = torch.device('cpu')
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         model, data = model.to(device), data.to(device)
         num_params = count_parameters(model)
