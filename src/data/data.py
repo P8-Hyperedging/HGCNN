@@ -162,7 +162,11 @@ def load_postgres_review_data(db_table_name="az_user_reviews_over_4"):
     with psycopg2.connect(**params) as conn:
         with conn.cursor() as cur:
             query = sql.SQL(
-                "SELECT az_user_reviews_over_4.review_id, az_user_reviews_over_4.user_id, az_user_reviews_over_4.business_id, review.stars FROM {} INNER JOIN review ON az_user_reviews_over_4.review_id = review.review_id"
+                """
+                SELECT t.review_id, t.user_id, t.business_id, review.stars
+                FROM {} AS t
+                INNER JOIN review ON t.review_id = review.review_id
+                """
             ).format(sql.Identifier(db_table_name))
 
             cur.execute(query)
