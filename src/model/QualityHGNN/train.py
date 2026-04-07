@@ -178,20 +178,15 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
-                print("Calling model...")
                 outputs = model(fts, LS, RS, Q)
-                print("Model returned, computing loss...")
                 loss = criterion(outputs[idx], lbls[idx])
                 print(f"Loss computed: {loss.item()}")
                 _, preds = torch.max(outputs, 1)
 
                 # backward + optimize only if in training phase
                 if phase == 'train':
-                    print("Starting backward...")
                     loss.backward()
-                    print("Backward complete, stepping optimizer...")
                     optimizer.step()
-                    print("Optimizer step complete")
 
             # statistics
             running_loss += loss.item() * fts.size(0)

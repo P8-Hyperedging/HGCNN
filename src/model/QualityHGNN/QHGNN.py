@@ -14,12 +14,8 @@ class QHGNN(nn.Module):
         self.hgc2 = QHGNN_conv(n_hid, n_class)
 
     def forward(self, x, LS, RS, Q):
-        print(f"QHGNN input Q shape: {Q.shape}")
         x = F.relu(self.hgc1(x, LS, Q, RS))
-        print(f"After hgc1, Q shape: {Q.shape}")
         x = F.dropout(x, self.dropout)
-        print(f"Dropping out")
         x = self.hgc2(x, LS, Q, RS)
-        print(f"After hgc2, Q shape: {Q.shape}")
         return x
 
