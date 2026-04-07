@@ -27,27 +27,26 @@ class QHGNN_conv(nn.Module):
         
     def forward(self, x: torch.Tensor, LS: torch.tensor, Q: torch.Tensor, RS: torch.Tensor):
         x = x.matmul(self.weight) 
-        # Create new feature matrix by multiplying with learnable weights.
         if self.bias is not None:
             x = x + self.bias
 
-        Q_updated = Q.clone()
-        for i in range(LS.shape[1]): 
-            node_mask = LS[:, i] > 0 
-            node_indices = torch.nonzero(node_mask).squeeze() 
+        with torch.no_grad(): 
+            Q_updated = Q.clone()
+            for i in range(LS.shape[1]): 
+                node_mask = LS[:, i] > 0 
+                node_indices = torch.nonzero(node_mask).squeeze() 
+                
+                if node_indices.dim() == 0:
+                    feature_matrix = x[node_indices].unsqueeze(0)
+                else:
+                    feature_matrix = x[node_indices]
+                
+                centroid = calculate_centroid_torch(feature_matrix)
+                total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid) + 1e-8
+                Q_updated[i, i] = (1 / total_distance) * Q[i, i] 
             
-            # Handle case where only one node is in the hyperedge
-            if node_indices.dim() == 0:  # Single node case
-                feature_matrix = x[node_indices].unsqueeze(0)  # Make it 2D: (1, features)
-            else:
-                feature_matrix = x[node_indices]
-            
-            centroid = calculate_centroid_torch(feature_matrix)
-            total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid) + 1e-8  # avoid division by zero
-            
-            Q_updated[i, i] = (1 / total_distance) * Q[i, i] 
-        G = LS.matmul(Q_updated).matmul(RS) # G = DV2_H.dot(W_diag).dot(invDE_HT_DV2)
-
+            print("Calculating G *GULP*")
+            G = LS.matmul(Q_updated).matmul(RS)
         x = G.matmul(x)
-        return x # Return both Q and x
+        return x
 
