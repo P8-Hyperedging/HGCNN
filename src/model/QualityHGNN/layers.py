@@ -44,6 +44,8 @@ class QHGNN_conv(nn.Module):
                 centroid = calculate_centroid_torch(feature_matrix)
                 total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid) + 1e-8
                 Q_updated[i, i] = (1 / total_distance) * Q[i, i] 
+                Q_updated = torch.clamp(Q_updated, min=1e-6, max=1e6)
+
             
             print("Calculating G *GULP*")
             G = LS.matmul(Q_updated).matmul(RS)
