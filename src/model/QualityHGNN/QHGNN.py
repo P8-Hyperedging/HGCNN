@@ -18,6 +18,8 @@ class QHGNN(nn.Module):
         x = F.relu(self.hgc1(x, LS, Q, RS))
         print(f"After hgc1, Q shape: {Q.shape}")
         x = F.dropout(x, self.dropout)
+        print(f"Dropping out")
         x = self.hgc2(x, LS, Q, RS)
+        print(f"After hgc2, Q shape: {Q.shape}")
         return x
 
