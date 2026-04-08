@@ -8,6 +8,7 @@ from torch_sparse import coalesce
 from collections import Counter
 from torch_scatter import scatter_add
 from torch_geometric.nn.conv.gcn_conv import gcn_norm
+from sklearn.feature_extraction.text import CountVectorizer
 
 from data.data import load_postgres_review_data, group_reviews_by_user, load_postgres_business_list_data
 
@@ -25,12 +26,18 @@ def load_yelp_dataset(train_percent = 0.025):
     business_to_id = {b.business_id: id for id, b in enumerate(businesses)}
     num_nodes = len(businesses)
 
+    # Bag of words for bussiness names, same procedure as in AllSet, but adapted to database fethcing
+    vectorizer = CountVectorizer(max_features = 1000, stop_words = 'english', strip_accents = 'ascii', ngram_range=(2,2))
+    res_name = [b.name for b in businesses]
+    name_bow = vectorizer.fit_transform(res_name).toarray()
+
     feature_list = []
-    for b in businesses:
+    for i, b in enumerate(businesses):
         feature_list.append([
             b.latitude, 
             b.longitude,
-            b.review_count])
+            b.review_count,
+            *name_bow[i].tolist()])
         
     features = np.array(feature_list)
 
