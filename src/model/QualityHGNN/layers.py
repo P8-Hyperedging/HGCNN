@@ -3,8 +3,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-from torchgen import local
-from utils.qualityutils import calculate_centroid, calculate_centroid_torch, calculate_total_distance_to_centroid, calculate_total_distance_to_centroid_torch
+from utils.qualityutils import calculate_centroid_torch, calculate_total_distance_to_centroid_torch
 
 
 class QHGNN_conv(nn.Module):
@@ -24,33 +23,66 @@ class QHGNN_conv(nn.Module):
         self.weight.data.uniform_(-stdv, stdv)
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
+
+    @staticmethod
+    def _left_mul(left: torch.Tensor, right: torch.Tensor) -> torch.Tensor:
+        if left.is_sparse:
+            return torch.sparse.mm(left, right)
+        return left.matmul(right)
+
+    @staticmethod
+    def _edge_node_indices(LS: torch.Tensor):
+        num_edges = LS.shape[1]
+
+        if LS.is_sparse:
+            ls = LS.coalesce()
+            row_idx, col_idx = ls.indices()
+            if row_idx.numel() == 0:
+                return [row_idx for _ in range(num_edges)]
+
+            sorted_cols, perm = torch.sort(col_idx)
+            sorted_rows = row_idx[perm]
+            counts = torch.bincount(sorted_cols, minlength=num_edges)
+
+            edge_nodes = []
+            cursor = 0
+            for count in counts.tolist():
+                edge_nodes.append(sorted_rows[cursor:cursor + count])
+                cursor += count
+            return edge_nodes
+
+        edge_nodes = []
+        for i in range(num_edges):
+            node_indices = torch.nonzero(LS[:, i] > 0, as_tuple=True)[0]
+            edge_nodes.append(node_indices)
+        return edge_nodes
         
-    def forward(self, x: torch.Tensor, LS: torch.tensor, Q: torch.Tensor, RS: torch.Tensor):
+    def forward(self, x: torch.Tensor, LS: torch.Tensor, Q: torch.Tensor, RS: torch.Tensor, edge_nodes=None):
         x = x.matmul(self.weight) 
         if self.bias is not None:
             x = x + self.bias
 
+        q_diag = Q if Q.dim() == 1 else torch.diagonal(Q)
+        if edge_nodes is None:
+            edge_nodes = self._edge_node_indices(LS)
+
         with torch.no_grad(): 
-            Q_updated = Q.clone()
-            for i in range(LS.shape[1]): 
-                node_mask = LS[:, i] > 0 
-                node_indices = torch.nonzero(node_mask).squeeze() 
-                
-                if node_indices.dim() == 0:
-                    feature_matrix = x[node_indices].unsqueeze(0)
-                else:
-                    feature_matrix = x[node_indices]
-                
+            q_updated = q_diag.clone()
+            for i, node_indices in enumerate(edge_nodes):
+                if node_indices.numel() == 0:
+                    q_updated[i] = 0
+                    continue
+
+                feature_matrix = x.index_select(0, node_indices)
                 centroid = calculate_centroid_torch(feature_matrix)
-                total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid) + 1e-8
-                Q_updated[i, i] = (1 / total_distance) * Q[i, i] 
+                total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid).clamp_min(1e-8)
+                q_updated[i] = (1 / total_distance) * q_diag[i]
 
-            Q_updated = torch.clamp(Q_updated, min=0, max=10)
+            q_updated.clamp_(min=0, max=1)
 
-
-            
-            print("Calculating G *GULP*")
-            G = LS.matmul(Q_updated).matmul(RS)
-        x = G.matmul(x)
+        # Equivalent to LS @ diag(q_updated) @ RS @ x, but avoids materializing G (N x N).
+        rs_x = self._left_mul(RS, x)
+        weighted_rs_x = rs_x * q_updated.unsqueeze(1)
+        x = self._left_mul(LS, weighted_rs_x)
         return x
 

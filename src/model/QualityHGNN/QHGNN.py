@@ -14,8 +14,9 @@ class QHGNN(nn.Module):
         self.hgc2 = QHGNN_conv(n_hid, n_class)
 
     def forward(self, x, LS, RS, Q):
-        x = F.relu(self.hgc1(x, LS, Q, RS))
+        edge_nodes = QHGNN_conv._edge_node_indices(LS)
+        x = F.relu(self.hgc1(x, LS, Q, RS, edge_nodes=edge_nodes))
         x = F.dropout(x, self.dropout)
-        x = self.hgc2(x, LS, Q, RS)
+        x = self.hgc2(x, LS, Q, RS, edge_nodes=edge_nodes)
         return x
 

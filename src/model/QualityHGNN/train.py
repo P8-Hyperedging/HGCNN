@@ -5,6 +5,7 @@ import torch
 import random
 import json
 import sys
+import numpy as np
 
 import torch
 from model.QualityHGNN.QHGNN import QHGNN
@@ -14,6 +15,19 @@ from torch import device, optim, split
 from data.data import *
 from data.n_preprocessing import *
 from utils.utils import *
+
+
+def scipy_sparse_to_torch_sparse(matrix, device):
+    if not sp.issparse(matrix):
+        raise TypeError(f"Expected a scipy sparse matrix, got {type(matrix)}")
+    
+    coo = matrix.tocoo().astype(np.float32)
+    indices = np.stack((coo.row, coo.col), axis=0).astype(np.int64)
+    indices = torch.from_numpy(indices)
+    values = torch.from_numpy(coo.data)
+    shape = torch.Size(coo.shape)
+    
+    return torch.sparse_coo_tensor(indices, values, shape, device=device).coalesce()
 
 
 class Train_QHGNN:
@@ -72,11 +86,10 @@ class Train_QHGNN:
 
         print(f"Total nodes: {n}, Training nodes: {len(training_range)}, Testing nodes: {len(testing_range)}")
 
+        q_diag = create_quality_matrix_from_H(self.reviews)
+        print(f"Q diagonal shape: {q_diag.shape}")
 
-        Q =  diags(create_quality_matrix_from_H(self.reviews))
-        print(f"Q shape: {Q.shape}")
-
-        (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
+        (DV2_H, _, invDE_HT_DV2) = generate_G_from_H(H, True)
         # Generating G terms
 
         LS = DV2_H
@@ -88,20 +101,20 @@ class Train_QHGNN:
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
-        fts = torch.Tensor(fm).to(device)
-        lbls = torch.Tensor(lv).long().to(device)
+        fts = torch.tensor(fm, dtype=torch.float32, device=device)
+        lbls = torch.tensor(lv, dtype=torch.long, device=device)
 
-        print("Unsparsing :(")
-        LS = torch.Tensor(LS.toarray()).to(device)
-        Q = torch.Tensor(Q.toarray()).to(device)
-        RS = torch.Tensor(RS.toarray()).to(device)
-        idx_train = torch.Tensor(training_range).long().to(device)
-        idx_test = torch.Tensor(testing_range).long().to(device)
+        LS = scipy_sparse_to_torch_sparse(LS, device)
+        RS = scipy_sparse_to_torch_sparse(RS, device)
+        Q = torch.tensor(q_diag, dtype=torch.float32, device=device)
+        idx_train = torch.tensor(training_range, dtype=torch.long, device=device)
+        idx_test = torch.tensor(testing_range, dtype=torch.long, device=device)
 
-        print(f"LS shape: {LS.shape}")
+        print(f"LS shape: {LS.shape}, nnz: {LS._nnz()}")
+        print(f"RS shape: {RS.shape}, nnz: {RS._nnz()}")
         print(f"Q shape: {Q.shape}")
         print(f"LS.shape[1]: {LS.shape[1]}")
-        print(f"Q.shape[1]: {Q.shape[1]}")
+        print(f"Q length: {Q.shape[0]}")
 
         n_class = int(lbls.max()) + 1
 
