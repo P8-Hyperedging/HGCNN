@@ -30,14 +30,14 @@ class Train_QHGNN:
     def __init__(self):
         self.reviews = load_postgres_review_data()
 
-    def train(self, num_epochs=100, 
-              lr=0.009, 
-              hidden_layer_size=256, 
-              train_proportion=0.8, 
+    def train(self, num_epochs=10000, 
+              lr=0.001, 
+              hidden_layer_size=512, 
+              train_proportion=0.5, 
               dropout=0.5, 
               weight_decay=5e-4, 
               gamma=0.5, 
-              milestones_input="50,100",
+              milestones_input="2500,7500",
               model_name="QHGNN",
               job_id=None,
               seed = None,
@@ -93,9 +93,12 @@ class Train_QHGNN:
 
         # G = DV2_H.dot(W_diag).dot(invDE_HT_DV2).toarray()
         # print(f"G shape: {G.shape}")
-
-
-        device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+        if torch.cuda.is_available():
+            device = torch.device('cuda:0')
+            print(f"Using CUDA device: {torch.cuda.get_device_name(0)}")
+        else:
+            device = torch.device('cpu')
+            print("CUDA not available. Falling back to CPU.")
 
         fts = torch.tensor(fm, dtype=torch.float32, device=device)
         lbls = torch.tensor(lv, dtype=torch.long, device=device)

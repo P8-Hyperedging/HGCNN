@@ -3,7 +3,6 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.nn.parameter import Parameter
-from utils.qualityutils import calculate_centroid_torch, calculate_total_distance_to_centroid_torch
 
 
 class QHGNN_conv(nn.Module):
@@ -31,54 +30,54 @@ class QHGNN_conv(nn.Module):
         return left.matmul(right)
 
     @staticmethod
-    def _edge_node_indices(LS: torch.Tensor):
-        num_edges = LS.shape[1]
-
+    def _membership_from_ls(LS: torch.Tensor):
         if LS.is_sparse:
             ls = LS.coalesce()
             row_idx, col_idx = ls.indices()
-            if row_idx.numel() == 0:
-                return [row_idx for _ in range(num_edges)]
+        else:
+            row_idx, col_idx = torch.nonzero(LS > 0, as_tuple=True)
 
-            sorted_cols, perm = torch.sort(col_idx)
-            sorted_rows = row_idx[perm]
-            counts = torch.bincount(sorted_cols, minlength=num_edges)
-
-            edge_nodes = []
-            cursor = 0
-            for count in counts.tolist():
-                edge_nodes.append(sorted_rows[cursor:cursor + count])
-                cursor += count
-            return edge_nodes
-
-        edge_nodes = []
-        for i in range(num_edges):
-            node_indices = torch.nonzero(LS[:, i] > 0, as_tuple=True)[0]
-            edge_nodes.append(node_indices)
-        return edge_nodes
+        counts = torch.bincount(col_idx, minlength=LS.shape[1])
+        return row_idx, col_idx, counts
         
-    def forward(self, x: torch.Tensor, LS: torch.Tensor, Q: torch.Tensor, RS: torch.Tensor, edge_nodes=None):
+    def forward(self, x: torch.Tensor, LS: torch.Tensor, Q: torch.Tensor, RS: torch.Tensor, membership=None):
         x = x.matmul(self.weight) 
         if self.bias is not None:
             x = x + self.bias
 
         q_diag = Q if Q.dim() == 1 else torch.diagonal(Q)
-        if edge_nodes is None:
-            edge_nodes = self._edge_node_indices(LS)
+        q_diag = q_diag.to(dtype=x.dtype, device=x.device)
+        if membership is None:
+            membership = self._membership_from_ls(LS)
+
+        row_idx, col_idx, counts = membership
+        num_edges = LS.shape[1]
 
         with torch.no_grad(): 
-            q_updated = q_diag.clone()
-            for i, node_indices in enumerate(edge_nodes):
-                if node_indices.numel() == 0:
-                    q_updated[i] = 0
-                    continue
+            if row_idx.numel() == 0:
+                q_updated = torch.zeros_like(q_diag)
+            else:
+                node_features = x.index_select(0, row_idx)
 
-                feature_matrix = x.index_select(0, node_indices)
-                centroid = calculate_centroid_torch(feature_matrix)
-                total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid).clamp_min(1e-8)
-                q_updated[i] = (1 / total_distance) * q_diag[i]
+                edge_feature_sum = torch.zeros(
+                    (num_edges, x.shape[1]),
+                    device=x.device,
+                    dtype=x.dtype
+                )
+                edge_feature_sum.index_add_(0, col_idx, node_features)
 
-            q_updated.clamp_(min=0, max=1)
+                counts_clamped = counts.clamp_min(1).to(device=x.device, dtype=x.dtype)
+                centroids = edge_feature_sum / counts_clamped.unsqueeze(1)
+
+                repeated_centroids = centroids.index_select(0, col_idx)
+                distances = torch.norm(node_features - repeated_centroids, dim=1)
+
+                total_distance = torch.zeros(num_edges, device=x.device, dtype=x.dtype)
+                total_distance.index_add_(0, col_idx, distances)
+
+                q_updated = q_diag * total_distance.clamp_min(1e-8).reciprocal()
+                q_updated = q_updated.masked_fill(counts == 0, 0)
+                q_updated.clamp_(min=0, max=1)
 
         # Equivalent to LS @ diag(q_updated) @ RS @ x, but avoids materializing G (N x N).
         rs_x = self._left_mul(RS, x)
