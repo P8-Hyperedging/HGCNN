@@ -18,15 +18,11 @@ from utils.utils import *
 
 
 def scipy_sparse_to_torch_sparse(matrix, device):
-    if not sp.issparse(matrix):
-        raise TypeError(f"Expected a scipy sparse matrix, got {type(matrix)}")
-    
-    coo = matrix.tocoo().astype(np.float32)
-    indices = np.stack((coo.row, coo.col), axis=0).astype(np.int64)
+    matrix = matrix.tocoo().astype(np.float32)
+    indices = np.vstack((matrix.row, matrix.col)).astype(np.int64)
     indices = torch.from_numpy(indices)
-    values = torch.from_numpy(coo.data)
-    shape = torch.Size(coo.shape)
-    
+    values = torch.from_numpy(matrix.data)
+    shape = torch.Size(matrix.shape)
     return torch.sparse_coo_tensor(indices, values, shape, device=device).coalesce()
 
 
