@@ -157,7 +157,7 @@ def load_postgres_user_data(limit=200000):
 
     return users
 
-def load_postgres_review_data(db_table_name="az_user_reviews_over_4"):
+def load_postgres_review_data(db_table_name="user_business_reviews_sw_restaurants"):
     reviews = []
     with psycopg2.connect(**params) as conn:
         with conn.cursor() as cur:
