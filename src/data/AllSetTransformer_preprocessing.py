@@ -27,7 +27,7 @@ def load_yelp_dataset(train_percent = 0.025):
     num_nodes = len(businesses)
 
     # Bag of words for bussiness names, same procedure as in AllSet, but adapted to database fethcing
-    vectorizer = CountVectorizer(max_features = 1000, stop_words = 'english', strip_accents = 'ascii', ngram_range=(2,2))
+    vectorizer = CountVectorizer(max_features = 1000, stop_words = 'english', strip_accents = 'ascii')
     res_name = [b.name for b in businesses]
     name_bow = vectorizer.fit_transform(res_name).toarray()
 
