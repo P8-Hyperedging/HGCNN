@@ -192,7 +192,6 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             with torch.set_grad_enabled(phase == 'train'):
                 outputs = model(fts, LS, RS, Q)
                 loss = criterion(outputs[idx], lbls[idx])
-                print(f"Loss computed: {loss.item()}")
                 _, preds = torch.max(outputs, 1)
 
                 # backward + optimize only if in training phase
