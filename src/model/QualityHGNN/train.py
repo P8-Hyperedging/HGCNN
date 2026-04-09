@@ -2,6 +2,7 @@
 import time
 import copy
 import torch
+from torchmetrics.classification import MulticlassConfusionMatrix, MulticlassF1Score, MulticlassPrecision, MulticlassRecall
 import random
 import json
 import sys
@@ -136,6 +137,14 @@ class Train_QHGNN:
 def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
 
+    n_class = int(lbls.max()) + 1
+    f1_metric = MulticlassF1Score(num_classes=n_class, average="macro").to(fts.device)
+    precision_metric = MulticlassPrecision(num_classes=n_class, average="macro").to(fts.device)
+    recall_metric = MulticlassRecall(num_classes=n_class, average="macro").to(fts.device)
+    confusion_metric = MulticlassConfusionMatrix(num_classes=n_class).to(fts.device)
+    majority_class = torch.bincount(lbls[idx_train]).argmax()
+    baseline_acc = (lbls[idx_test] == majority_class).float().mean()
+
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
 
@@ -182,12 +191,34 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             epoch_loss = running_loss / len(idx)
             epoch_acc = running_corrects.double() / len(idx)
 
+            if phase == 'val':
+                f1_metric.reset()
+                precision_metric.reset()
+                recall_metric.reset()
+                confusion_metric.reset()
+                f1 = f1_metric(preds[idx], lbls[idx])
+                precision = precision_metric(preds[idx], lbls[idx])
+                recall = recall_metric(preds[idx], lbls[idx])
+                confusion = confusion_metric(preds[idx], lbls[idx]).detach().cpu().tolist()
+                confusion_rows = "\n".join(str(row) for row in confusion) # Newline between rows to make it readable
+
             if epoch % print_freq == 0:
-                msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
+                if phase == 'val':
+                    delta_acc = epoch_acc - baseline_acc
+                    msg = (
+                        f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f} '
+                        f'MajorityOnlyAcc: {baseline_acc:.4f} DeltaAcc: {delta_acc:.4f} '
+                        f'MacroP: {precision:.4f} MacroR: {recall:.4f} MacroF1: {f1:.4f}'
+                    )
+                else:
+                    msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
                 if socket_logger:
                     socket_logger(msg, job_id=job_id, progress=epoch)
                 else:
                     print(msg)
+                    if phase == 'val':
+                        print('Confusion Matrix:')
+                        print(confusion_rows)
 
             # deep copy the model
             if phase == 'val' and epoch_acc > best_acc:
