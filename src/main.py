@@ -8,5 +8,5 @@ if __name__ == "__main__":
     trainer.train()
     #trainer = Train_MoonLabHGNN()
     #trainer.train()
-    trainer = Train_AllSetTransformer()
-    trainer.train()
+    #trainer = Train_AllSetTransformer()
+    #trainer.train()
