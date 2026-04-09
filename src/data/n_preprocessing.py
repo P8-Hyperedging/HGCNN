@@ -89,10 +89,10 @@ def create_quality_matrix_from_H(reviews):
         
         user_reviews = user_reviews_map[user_id]
         mean = calculate_mean_stars(user_reviews)
-        variance = calculate_review_variance(user_reviews, mean) + 1e-5 # avoid division by zero
-        
-        W[user_column] = 1 / variance
+        variance = calculate_review_variance(user_reviews, mean)
 
+        W[user_column] = 1 - variance / 6.25
+    
     return W 
 
 # Should probably use businesses and reviews as parameters
@@ -121,6 +121,6 @@ def create_label_vector(businesses):
     labels = np.zeros(len(businesses))
     for i in range(len(businesses)):
         b = businesses[i]
-        labels[i] = round(b.stars * 2)
+        labels[i] = round(b.stars * 2) - 2 # -2 to make class numbers 0-8 instead of 2-10
         
     return labels
