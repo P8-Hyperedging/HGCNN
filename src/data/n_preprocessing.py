@@ -5,6 +5,8 @@ from data.data import OpeningHours
 import torch
 from utils.qualityutils import *
 
+MAX_POSSIBLE_VARIANCE = 6.25
+
 def build_hypergraph_incidence_matrix(reviews):
     """ Builds a hypergraph incidence matrix H. Rows/nodes are businesses, columns/hyperedges are users. 
     H[i, j] = 1 if business i was reviewed by user j. """
@@ -91,7 +93,7 @@ def create_quality_matrix_from_H(reviews):
         mean = calculate_mean_stars(user_reviews)
         variance = calculate_review_variance(user_reviews, mean)
 
-        W[user_column] = 1 - variance / 6.25
+        W[user_column] = 1 - variance / MAX_POSSIBLE_VARIANCE
     
     return W 
 
