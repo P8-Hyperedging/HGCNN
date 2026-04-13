@@ -79,8 +79,11 @@ class Train_QHGNN:
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
         # Generating G terms
 
-        G = DV2_H.dot(W_diag).dot(invDE_HT_DV2).tocoo()
-        print(f"G shape: {G.shape}")
+        LS = DV2_H
+        RS = invDE_HT_DV2
+
+        # G = DV2_H.dot(W_diag).dot(invDE_HT_DV2).toarray()
+        # print(f"G shape: {G.shape}")
 
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -93,13 +96,18 @@ class Train_QHGNN:
 
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
-        G = torch.sparse_coo_tensor(
-            torch.from_numpy(np.array([G.row, G.col], dtype=np.int64)),
-            torch.from_numpy(G.data.astype(np.float32)),
-            size=G.shape
-        ).coalesce().to(device)
-        idx_train = train_split.long().to(device)
-        idx_test = valid_split.long().to(device)
+
+        print("Unsparsing :(")
+        LS = torch.Tensor(LS.toarray()).to(device)
+        Q = torch.Tensor(Q.toarray()).to(device)
+        RS = torch.Tensor(RS.toarray()).to(device)
+        idx_train = torch.Tensor(training_range).long().to(device)
+        idx_test = torch.Tensor(testing_range).long().to(device)
+
+        print(f"LS shape: {LS.shape}")
+        print(f"Q shape: {Q.shape}")
+        print(f"LS.shape[1]: {LS.shape[1]}")
+        print(f"Q.shape[1]: {Q.shape[1]}")
 
         n_class = int(lbls.max()) + 1
 
@@ -115,7 +123,7 @@ class Train_QHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -143,7 +151,7 @@ class Train_QHGNN:
         )
 
 
-def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
+def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None):
     since = time.time()
 
     n_class = int(lbls.max()) + 1
@@ -184,8 +192,9 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
-                outputs = model(fts, G)
+                outputs = model(fts, LS, RS, Q)
                 loss = criterion(outputs[idx], lbls[idx])
+                print(f"Loss computed: {loss.item()}")
                 _, preds = torch.max(outputs, 1)
 
                 # backward + optimize only if in training phase

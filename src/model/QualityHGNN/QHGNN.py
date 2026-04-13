@@ -13,9 +13,9 @@ class QHGNN(nn.Module):
         # in_ch is the number of input features per node, n_hid is the number of hidden nodes
         self.hgc2 = QHGNN_conv(n_hid, n_class)
 
-    def forward(self, x, G):
-        x = F.relu(self.hgc1(x, G)) # Element-wise relu activation after first layer
+    def forward(self, x, LS, RS, Q):
+        x = F.relu(self.hgc1(x, LS, Q, RS))
         x = F.dropout(x, self.dropout)
-        x = self.hgc2(x, G)
+        x = self.hgc2(x, LS, Q, RS)
         return x
 
