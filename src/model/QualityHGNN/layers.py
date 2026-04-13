@@ -44,14 +44,13 @@ class QHGNN_conv(nn.Module):
                 centroid = calculate_centroid_torch(feature_matrix)
                 total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid)
                 distance_score = 1 / (1 + total_distance)
-                print(f"Distance score for hyperedge {i}: {distance_score.item()}")
+                #print(f"Distance score for hyperedge {i}: {distance_score.item()}")
                 updated_score = distance_score * Q[i, i]
-                print(f"Updated quality score for hyperedge {i}: {updated_score.item()}")
+                #print(f"Updated quality score for hyperedge {i}: {updated_score.item()}")
                 Q_updated[i, i] = updated_score
 
             Q_updated = torch.clamp(Q_updated, min=0, max=10)
-            
-            print("Calculating G *GULP*")
+            print (f"Q sample values after update: {Q_updated.diag()[:10]}")
             G = LS.matmul(Q_updated).matmul(RS)
         x = G.matmul(x)
         return x
