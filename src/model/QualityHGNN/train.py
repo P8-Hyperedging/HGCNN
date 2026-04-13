@@ -73,7 +73,7 @@ class Train_QHGNN:
         print(f"Sample val node IDs (first 10): {valid_split[:10]}")
 
 
-        Q =  diags(create_quality_matrix_from_H(self.reviews))
+        Q = create_quality_matrix_from_H(self.reviews)
         print(f"Q shape: {Q.shape}")
 
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
@@ -99,15 +99,15 @@ class Train_QHGNN:
 
         print("Unsparsing :(")
         LS = torch.Tensor(LS.toarray()).to(device)
-        Q = torch.Tensor(Q.toarray()).to(device)
+        Q = torch.Tensor(Q).to(device)
         RS = torch.Tensor(RS.toarray()).to(device)
-        idx_train = torch.Tensor(training_range).long().to(device)
-        idx_test = torch.Tensor(testing_range).long().to(device)
+        idx_train = train_split.long().to(device)
+        idx_test = valid_split.long().to(device)
 
         print(f"LS shape: {LS.shape}")
         print(f"Q shape: {Q.shape}")
         print(f"LS.shape[1]: {LS.shape[1]}")
-        print(f"Q.shape[1]: {Q.shape[1]}")
+        print(f"Q length: {Q.shape[0]}")
 
         n_class = int(lbls.max()) + 1
 
