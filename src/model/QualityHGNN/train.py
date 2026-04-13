@@ -9,7 +9,6 @@ import sys
 
 import torch
 from model.QualityHGNN.QHGNN import QHGNN
-#from sklearn.model_selection import train_test_split
 from torch import device, optim, split
 
 from data.data import *
@@ -66,12 +65,11 @@ class Train_QHGNN:
             print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
 
         n = len(businesses)
-        split = int(n * train_proportion)
+        train_split, valid_split = rand_train_test_idx_simple(n, train_prop=train_proportion)
 
-        training_range = np.arange(0, split)
-        testing_range = np.arange(split, n)
-
-        print(f"Total nodes: {n}, Training nodes: {len(training_range)}, Testing nodes: {len(testing_range)}")
+        print(f"Total nodes: {n}, Training nodes: {len(train_split)}, Validation nodes: {len(valid_split)}")
+        print(f"Sample train node IDs (first 10): {train_split[:10]}")
+        print(f"Sample val node IDs (first 10): {valid_split[:10]}")
 
 
         Q =  diags(create_quality_matrix_from_H(self.reviews))
@@ -89,8 +87,8 @@ class Train_QHGNN:
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
         G = torch.Tensor(G).to(device)
-        idx_train = torch.Tensor(training_range).long().to(device)
-        idx_test = torch.Tensor(testing_range).long().to(device)
+        idx_train = train_split.long().to(device)
+        idx_test = valid_split.long().to(device)
 
         n_class = int(lbls.max()) + 1
 
