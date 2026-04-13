@@ -88,7 +88,7 @@ class Train_QHGNN:
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
         if (torch.cuda.is_available()):
-            print(f"__________Using GPU: {torch.cuda.get_device_name(0)}")
+            print(f"Using GPU: {torch.cuda.get_device_name(0)}")
         else:
             print("Using CPU")
 
