@@ -65,11 +65,11 @@ class Train_QHGNN:
             print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
 
         n = len(businesses)
-        splits = rand_train_test_idx_simple(n, train_prop=train_proportion)
+        train_split, valid_split = rand_train_test_idx_simple(n, train_prop=train_proportion)
 
-        print(f"Total nodes: {n}, Training nodes: {len(splits['train'])}, Validation nodes: {len(splits['valid'])}")
-        print(f"Sample train node IDs (first 10): {splits['train'][:10].tolist()}")
-        print(f"Sample val node IDs (first 10): {splits['valid'][:10].tolist()}")
+        print(f"Total nodes: {n}, Training nodes: {len(train_split)}, Validation nodes: {len(valid_split)}")
+        print(f"Sample train node IDs (first 10): {train_split[:10]}")
+        print(f"Sample val node IDs (first 10): {valid_split[:10]}")
 
 
         Q =  diags(create_quality_matrix_from_H(self.reviews))
@@ -87,8 +87,8 @@ class Train_QHGNN:
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
         G = torch.Tensor(G).to(device)
-        idx_train = splits['train'].long().to(device)
-        idx_test = splits['valid'].long().to(device)
+        idx_train = train_split.long().to(device)
+        idx_test = valid_split.long().to(device)
 
         n_class = int(lbls.max()) + 1
 

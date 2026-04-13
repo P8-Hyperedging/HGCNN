@@ -127,7 +127,7 @@ def create_label_vector(businesses):
         
     return labels
 
-def rand_train_test_idx_simple(n_nodes, train_prop=0.75):
+def rand_train_test_idx_simple(n_nodes, train_prop=0.75) -> tuple[torch.Tensor, torch.Tensor]:
     """ Simple random split. Train proportion is provide, the rest is validation. """
     n = n_nodes
     train_num = int(n * train_prop)
@@ -138,4 +138,4 @@ def rand_train_test_idx_simple(n_nodes, train_prop=0.75):
     train_idx = perm[:train_num]
     valid_idx = perm[train_num:train_num + valid_num]
     
-    return {'train': train_idx, 'valid': valid_idx}
+    return train_idx, valid_idx
