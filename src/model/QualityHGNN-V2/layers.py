@@ -7,9 +7,9 @@ from torchgen import local
 from utils.qualityutils import calculate_centroid, calculate_centroid_torch, calculate_total_distance_to_centroid, calculate_total_distance_to_centroid_torch
 
 
-class QHGNN_conv(nn.Module):
+class QHGNN_conv_v2(nn.Module):
     def __init__(self, in_ft, out_ft, bias=True):
-        super(QHGNN_conv, self).__init__()
+        super(QHGNN_conv_v2, self).__init__()
 
         self.weight = Parameter(torch.Tensor(in_ft, out_ft)) # Create new feature matrix for hidden layer
         if bias:
