@@ -1,6 +1,7 @@
 
 import time
 import copy
+import numpy as np
 import torch
 from torchmetrics.classification import MulticlassConfusionMatrix, MulticlassF1Score, MulticlassPrecision, MulticlassRecall
 import random
@@ -21,7 +22,7 @@ class Train_QHGNN:
     def __init__(self):
         self.reviews = load_postgres_review_data()
 
-    def train(self, num_epochs=100, 
+    def train(self, num_epochs=200, 
               lr=0.009, 
               hidden_layer_size=256, 
               train_proportion=0.8, 
@@ -80,15 +81,25 @@ class Train_QHGNN:
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
         # Generating G terms
 
-        G = DV2_H.dot(W_diag).dot(invDE_HT_DV2).toarray()
+        G = DV2_H.dot(W_diag).dot(invDE_HT_DV2).tocoo()
         print(f"G shape: {G.shape}")
 
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
+        if (torch.cuda.is_available()):
+            print(f"__________Using GPU: {torch.cuda.get_device_name(0)}")
+        else:
+            print("Using CPU")
+
+
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
-        G = torch.Tensor(G).to(device)
+        G = torch.sparse_coo_tensor(
+            torch.from_numpy(np.array([G.row, G.col], dtype=np.int64)),
+            torch.from_numpy(G.data.astype(np.float32)),
+            size=G.shape
+        ).coalesce().to(device)
         idx_train = torch.Tensor(training_range).long().to(device)
         idx_test = torch.Tensor(testing_range).long().to(device)
 
