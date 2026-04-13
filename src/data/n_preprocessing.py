@@ -5,7 +5,7 @@ from data.data import OpeningHours
 import torch
 from utils.qualityutils import *
 
-MAX_POSSIBLE_VARIANCE = 6.25
+MAX_POSSIBLE_VARIANCE = 4.0 # ((1-3)^2+(5-3)^2)/2
 
 def build_hypergraph_incidence_matrix(reviews):
     """ Builds a hypergraph incidence matrix H. Rows/nodes are businesses, columns/hyperedges are users. 
@@ -126,3 +126,16 @@ def create_label_vector(businesses):
         labels[i] = round(b.stars * 2) - 2 # -2 to make class numbers 0-8 instead of 2-10
         
     return labels
+
+def rand_train_test_idx_simple(n_nodes, train_prop=0.75):
+    """ Simple random split. Train proportion is provide, the rest is validation. """
+    n = n_nodes
+    train_num = int(n * train_prop)
+    valid_num = int(n * (1-train_prop))
+    
+    perm = torch.as_tensor(np.random.permutation(n))
+    
+    train_idx = perm[:train_num]
+    valid_idx = perm[train_num:train_num + valid_num]
+    
+    return {'train': train_idx, 'valid': valid_idx}
