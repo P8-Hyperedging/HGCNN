@@ -18,7 +18,7 @@ from utils.utils import *
 
 class Train_QHGNN:
     def __init__(self):
-        self.reviews = load_postgres_review_data("user_business_reviews_sw_restaurants")
+        self.reviews = load_postgres_review_data()
 
     def train(self, num_epochs=100, 
               lr=0.009, 
