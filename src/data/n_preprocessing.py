@@ -97,7 +97,6 @@ def create_quality_matrix_from_H(reviews):
     
     return W 
 
-# Should probably use businesses and reviews as parameters
 
 def create_business_feature_matrix(businesses: list[Business], opening_hours):
     nodes = len(businesses)
