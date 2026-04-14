@@ -11,9 +11,16 @@ import threading
 from datetime import datetime
 import traceback
 
+ALLOWED_ORIGINS = {"http://localhost:8000", "http://127.0.0.1:8000", "http://0.0.0.0:8000"}
+ALLOWED_HOSTS = {"localhost:5002", "127.0.0.1:5002"}
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=list(ALLOWED_ORIGINS),
+    async_mode="threading"
+)
 api = Api(app, version='1.0', title='HGCNN API',
           description='Hypergraph Neural Network Training API',
           doc='/docs')
@@ -42,6 +49,17 @@ model_option_model = api.model('ModelOption', {
 })
 
 options=["allset","moonlab", "qhgnn"]
+
+
+@app.before_request
+def restrict_to_localhost_frontend():
+    host = request.host.split("@")[-1]
+    if host not in ALLOWED_HOSTS:
+        return {"error": "Forbidden host."}, 403
+
+    origin = request.headers.get("Origin")
+    if origin is not None and origin not in ALLOWED_ORIGINS:
+        return {"error": "Forbidden origin. Only localhost:8000 is allowed."}, 403
 
 @app.route("/")
 def home():
@@ -214,9 +232,14 @@ def handle_subscribe(data):
             {"job_id": job_id, "message": msg, "progress": job["progress"]},
         )
 
+
+@socketio.on("connect")
+def handle_connect(auth=None):
+    print("Client connected")
+
 if __name__ == "__main__":
     thread = threading.Thread(target=background_thread)
     thread.daemon = True
     thread.start()
     
-    socketio.run(app, host='0.0.0.0', port=5002)
+    socketio.run(app, host='127.0.0.1', port=5002, allow_unsafe_werkzeug=True)
