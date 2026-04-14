@@ -33,7 +33,7 @@ class QHGNN_conv_v2(nn.Module):
             nodes_per_edge = membership.sum(dim=0).clamp(min=1)    # (E,)
 
             # Centroids for all hyperedges at once: (E, F)
-            centroids = (membership.T @ x) / nodes_per_edge.unsqueeze(1)
+            centroids = membership.T.matmul(x) / nodes_per_edge.unsqueeze(1)
 
             # Compute total distance per hyperedge in chunks to limit memory
             E = LS.shape[1]
