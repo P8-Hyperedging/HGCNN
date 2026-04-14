@@ -86,7 +86,9 @@ class Train(Resource):
 
         parsed_data = {}
         for k, v in data.items():
-            if k in int_fields:
+            if v == '':
+                parsed_data[k] = None
+            elif k in int_fields:
                 parsed_data[k] = int(v)
             elif k in float_fields:
                 parsed_data[k] = float(v)
