@@ -52,6 +52,7 @@ class QHGNN_conv_v2(nn.Module):
                 Q[i, i] = updated_score
 
             Q = torch.clamp(Q, min=0, max=10)
+            self.Q_updated = Q  # Store updated Q for tracking
             print (f"Q sample values after update: {Q.diag()[:10]}")
             G = LS.matmul(Q).matmul(RS)
         x = G.matmul(x)

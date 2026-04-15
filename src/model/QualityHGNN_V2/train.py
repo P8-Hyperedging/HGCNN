@@ -197,7 +197,7 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
                 
                 # Store quality scores from diagonal Q matrix for tracked edges (train phase only)
                 if phase == 'train':
-                    Q_diag = Q.diag().detach().cpu()
+                    Q_diag = model.hgc1.Q_updated.diag().detach().cpu()
                     for edge in plot_random_edges:
                         plot_quality_scores_dict[edge].append(Q_diag[edge].item())
                     plot_epochs.append(epoch)
