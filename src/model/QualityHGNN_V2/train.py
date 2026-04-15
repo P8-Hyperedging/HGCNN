@@ -15,6 +15,7 @@ from data.data import *
 from data.n_preprocessing import *
 from utils.utils import *
 
+import matplotlib.pyplot as plt
 
 class Train_QHGNN_v2:
     def __init__(self):
@@ -155,6 +156,12 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
     confusion_metric = MulticlassConfusionMatrix(num_classes=n_class).to(fts.device)
     majority_class = torch.bincount(lbls[idx_train]).argmax()
     baseline_acc = (lbls[idx_test] == majority_class).float().mean()
+    
+    # Initialize quality score tracking for 10 random edges
+    num_tracked = min(10, Q.shape[0])
+    plot_random_edges = np.random.choice(Q.shape[0], size=num_tracked, replace=False).tolist()
+    plot_quality_scores_dict = {edge: [] for edge in plot_random_edges}
+    plot_epochs = []
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -187,6 +194,14 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
                 outputs = model(fts, LS, RS, Q)
+                
+                # Store quality scores from diagonal Q matrix for tracked edges (train phase only)
+                if phase == 'train':
+                    Q_diag = Q.diag().detach().cpu()
+                    for edge in plot_random_edges:
+                        plot_quality_scores_dict[edge].append(Q_diag[edge].item())
+                    plot_epochs.append(epoch)
+
                 loss = criterion(outputs[idx], lbls[idx])
                 print(f"Loss computed: {loss.item()}")
                 _, preds = torch.max(outputs, 1)
@@ -244,6 +259,25 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
                 socket_logger(msg, job_id, progress=epoch)
             else:
                 print(msg)
+            
+            # Plot quality score evolution at print_freq intervals
+            if plot_epochs and plot_quality_scores_dict:
+                plt.figure(figsize=(12, 7))
+                for edge in plot_random_edges:
+                    if plot_quality_scores_dict[edge]:
+                        plt.plot(plot_epochs, 
+                                plot_quality_scores_dict[edge], 
+                                marker='o', linewidth=2, label=f'Edge {int(edge)}')
+                plt.xlabel('Epoch', fontsize=12)
+                plt.ylabel('Quality Score', fontsize=12)
+                plt.title('Quality Score Evolution During Training', fontsize=14, fontweight='bold')
+                plt.legend(loc='best', fontsize=10, ncol=2)
+                plt.grid(True, alpha=0.3)
+                plt.tight_layout()
+                plot_filename = f'quality_scores_epoch_{epoch}.png'
+                plt.savefig(plot_filename, dpi=100)
+                print(f"Quality score plot saved to {plot_filename}")
+                plt.close()
 
     time_elapsed = time.time() - since
     time_msg = f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s'
