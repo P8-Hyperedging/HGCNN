@@ -1,7 +1,6 @@
 from flask import Flask, jsonify, request
 from flask_restx import Api, Resource, fields
 from flask_socketio import SocketIO
-from job_store import jobs, jobs_lock
 from model.QualityHGNN.train import Train_QHGNN
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 from model.AllSetTransformer.train import Train_AllSetTransformer
@@ -127,23 +126,7 @@ class Train(Resource):
             "job_id": job_id
         }, 202
 
-def background_thread():
-    count = 0
-    while True:
-        time.sleep(1)
-        count += 1
-        socketio.emit('live_update', {'count': count})
-
 def socket_logger(message, job_id=None, progress=None):
-    with jobs_lock:
-        if job_id not in jobs:
-            jobs[job_id] = {"progress": 0, "logs": []}
-
-        if progress is not None:
-            jobs[job_id]["progress"] = progress
-
-        jobs[job_id]["logs"].append(message)
-
     socketio.emit(
         "job_update",
         {
@@ -238,8 +221,4 @@ def handle_connect(auth=None):
     print("Client connected")
 
 if __name__ == "__main__":
-    thread = threading.Thread(target=background_thread)
-    thread.daemon = True
-    thread.start()
-    
     socketio.run(app, host='127.0.0.1', port=5002, allow_unsafe_werkzeug=True)
