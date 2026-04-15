@@ -31,6 +31,7 @@ class QHGNN_conv_v2(nn.Module):
             x = x + self.bias
 
         with torch.no_grad(): 
+            Q = Q.clone()  # Clone so original Q is not affected
             for i in range(LS.shape[1]): 
                 node_mask = LS[:, i] > 0 
                 node_indices = torch.nonzero(node_mask).squeeze() 
@@ -45,11 +46,9 @@ class QHGNN_conv_v2(nn.Module):
                 print(f"Total distance to centroid for hyperedge {i}: {total_distance.item()}")
                 distance_score = 1 / (1 + total_distance)
                 print(f"Distance score for hyperedge {i}: {distance_score.item()}")
-                #print(f"Distance score for hyperedge {i}: {distance_score.item()}")
                 print(f"Original quality score for hyperedge {i}: {Q[i, i].item()}")
                 updated_score = distance_score * Q[i, i]
                 print(f"Updated quality score for hyperedge {i}: {updated_score.item()}")
-                #print(f"Updated quality score for hyperedge {i}: {updated_score.item()}")
                 Q[i, i] = updated_score
 
             Q = torch.clamp(Q, min=0, max=10)
