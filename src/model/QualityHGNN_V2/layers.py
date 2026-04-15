@@ -42,6 +42,7 @@ class QHGNN_conv_v2(nn.Module):
                 
                 centroid = calculate_centroid_torch(feature_matrix)
                 total_distance = calculate_total_distance_to_centroid_torch(feature_matrix, centroid)
+                print(f"Total distance to centroid for hyperedge {i}: {total_distance.item()}")
                 distance_score = 1 / (1 + total_distance)
                 #print(f"Distance score for hyperedge {i}: {distance_score.item()}")
                 updated_score = distance_score * Q[i, i]
