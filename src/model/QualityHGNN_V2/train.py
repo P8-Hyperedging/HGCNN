@@ -1,6 +1,7 @@
 
 import time
 import copy
+import numpy as np
 import torch
 from torchmetrics.classification import MulticlassConfusionMatrix, MulticlassF1Score, MulticlassPrecision, MulticlassRecall
 import random
@@ -21,13 +22,13 @@ class Train_QHGNN_v2:
     def __init__(self):
         self.reviews = load_postgres_review_data()
 
-    def train(self, num_epochs=100, 
-              lr=0.009, 
-              hidden_layer_size=256, 
-              train_proportion=0.8, 
-              dropout=0.5, 
-              weight_decay=5e-4, 
-              gamma=0.5, 
+    def train(self, num_epochs=200,
+              lr=0.009,
+              hidden_layer_size=256,
+              train_proportion=0.8,
+              dropout=0.5,
+              weight_decay=5e-4,
+              gamma=0.5,
               milestones_input="50,100",
               model_name="QHGNN_v2",
               job_id=None,
@@ -66,15 +67,14 @@ class Train_QHGNN_v2:
             print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
 
         n = len(businesses)
-        split = int(n * train_proportion)
+        train_split, valid_split = rand_train_test_idx_simple(n, train_prop=train_proportion)
 
-        training_range = np.arange(0, split)
-        testing_range = np.arange(split, n)
+        print(f"Total nodes: {n}, Training nodes: {len(train_split)}, Validation nodes: {len(valid_split)}")
+        print(f"Sample train node IDs (first 10): {train_split[:10]}")
+        print(f"Sample val node IDs (first 10): {valid_split[:10]}")
 
-        print(f"Total nodes: {n}, Training nodes: {len(training_range)}, Testing nodes: {len(testing_range)}")
 
-
-        Q =  diags(create_quality_matrix_from_H(self.reviews))
+        Q = create_quality_matrix_from_H(self.reviews)
         print(f"Q shape: {Q.shape}")
 
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
@@ -83,33 +83,36 @@ class Train_QHGNN_v2:
         LS = DV2_H
         RS = invDE_HT_DV2
 
-        # G = DV2_H.dot(W_diag).dot(invDE_HT_DV2).toarray()
-        # print(f"G shape: {G.shape}")
-
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+        if (torch.cuda.is_available()):
+            print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+        else:
+            print("Using CPU")
+
 
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
 
         print("Unsparsing :(")
         LS = torch.Tensor(LS.toarray()).to(device)
-        Q = torch.Tensor(Q.toarray()).to(device)
+        Q = torch.Tensor(Q).to(device)
         RS = torch.Tensor(RS.toarray()).to(device)
-        idx_train = torch.Tensor(training_range).long().to(device)
-        idx_test = torch.Tensor(testing_range).long().to(device)
+        idx_train = train_split.long().to(device)
+        idx_test = valid_split.long().to(device)
 
         print(f"LS shape: {LS.shape}")
         print(f"Q shape: {Q.shape}")
         print(f"LS.shape[1]: {LS.shape[1]}")
-        print(f"Q.shape[1]: {Q.shape[1]}")
+        print(f"Q length: {Q.shape[0]}")
 
         n_class = int(lbls.max()) + 1
 
         model_ft = QHGNN_v2(
             in_ch=fts.shape[1],
             n_class=n_class,
-            n_hid=hidden_layer_size, 
+            n_hid=hidden_layer_size,
             dropout=dropout
         ).to(device)
 
@@ -305,7 +308,7 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
         # Send final messages
         socket_logger(time_msg, job_id=job_id, progress=num_epochs)
         socket_logger(best_msg, job_id=job_id, progress=num_epochs)
-    
+
         # Optional: special final status so frontend knows training is finished
         socket_logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
     else:

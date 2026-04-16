@@ -1,7 +1,6 @@
 import math
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 from torch.nn.parameter import Parameter
 
 
@@ -17,21 +16,19 @@ class QHGNN_conv(nn.Module):
         self.reset_parameters()
 
     def reset_parameters(self):
-        
         stdv = 1. / math.sqrt(self.weight.size(1))
         self.weight.data.uniform_(-stdv, stdv)
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
-        
+
         # We start with ZEROS!!, so the model is more consistent for development.
 
     def forward(self, x: torch.Tensor, G: torch.Tensor):
-        x = x.matmul(self.weight) 
+        x = x.matmul(self.weight)
         # Create new feature matrix by multiplying with learnable weights.
         if self.bias is not None:
             x = x + self.bias
-        
+
         # Multiply the feature matrix x with modified laplacian (aggregation)
         x = G.matmul(x)
         return x
-
