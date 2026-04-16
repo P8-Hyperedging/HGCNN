@@ -1,6 +1,7 @@
 
 import time
 import copy
+import numpy as np
 import torch
 from torchmetrics.classification import MulticlassConfusionMatrix, MulticlassF1Score, MulticlassPrecision, MulticlassRecall
 import random
@@ -20,13 +21,13 @@ class Train_QHGNN:
     def __init__(self):
         self.reviews = load_postgres_review_data()
 
-    def train(self, num_epochs=100, 
-              lr=0.009, 
-              hidden_layer_size=256, 
-              train_proportion=0.8, 
-              dropout=0.5, 
-              weight_decay=5e-4, 
-              gamma=0.5, 
+    def train(self, num_epochs=200,
+              lr=0.009,
+              hidden_layer_size=256,
+              train_proportion=0.8,
+              dropout=0.5,
+              weight_decay=5e-4,
+              gamma=0.5,
               milestones_input="50,100",
               model_name="QHGNN",
               job_id=None,
@@ -72,7 +73,7 @@ class Train_QHGNN:
         print(f"Sample val node IDs (first 10): {valid_split[:10]}")
 
 
-        Q =  diags(create_quality_matrix_from_H(self.reviews))
+        Q = create_quality_matrix_from_H(self.reviews)
         print(f"Q shape: {Q.shape}")
 
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
@@ -83,6 +84,12 @@ class Train_QHGNN:
 
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+        if (torch.cuda.is_available()):
+            print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+        else:
+            print("Using CPU")
+
 
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
@@ -95,7 +102,7 @@ class Train_QHGNN:
         model_ft = QHGNN(
             in_ch=fts.shape[1],
             n_class=n_class,
-            n_hid=hidden_layer_size, 
+            n_hid=hidden_layer_size,
             dropout=dropout
         ).to(device)
 
@@ -239,7 +246,7 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
         # Send final messages
         socket_logger(time_msg, job_id=job_id, progress=num_epochs)
         socket_logger(best_msg, job_id=job_id, progress=num_epochs)
-    
+
         # Optional: special final status so frontend knows training is finished
         socket_logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
     else:
