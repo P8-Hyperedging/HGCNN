@@ -7,10 +7,12 @@ from model.QualityHGNN_V2.train import Train_QHGNN_v2
 
 if __name__ == "__main__":
     epochs = 10
-    start = time.time()    
+    statistics_frame_skip = 3
+    generate_statistics = True
+    start = time.time()
 
     trainer = Train_QHGNN_v2()
-    trainer.train(num_epochs=epochs)
+    trainer.train(num_epochs=epochs, frame_skip=statistics_frame_skip, generate_statistics=generate_statistics)
     
     #trainer = Train_MoonLabHGNN()
     #trainer.train()

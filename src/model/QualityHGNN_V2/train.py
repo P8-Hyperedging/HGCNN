@@ -34,7 +34,9 @@ class Train_QHGNN_v2:
               model_name="QHGNN_v2",
               job_id=None,
               seed = None,
-              socket_logger=None
+              socket_logger=None,
+              generate_statistics=False,
+              frame_skip=1
               ):
         total_runtime_start = time.time()
 
@@ -77,6 +79,9 @@ class Train_QHGNN_v2:
 
         Q = create_quality_matrix_from_H(self.reviews)
         print(f"Q shape: {Q.shape}")
+        
+        # Set frame_skip for diagnostic data collection during training
+        QualityStatistics.frame_skip = frame_skip
 
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
         # Generating G terms
@@ -125,9 +130,12 @@ class Train_QHGNN_v2:
         model_ft, valid_acc, train_runtime = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
 
         # Generate diagnostic plots and GIF after training completes (VRAM-efficient approach)
-        print("\n=== Generating diagnostic plots and GIF ===")
-        stats_dir = os.path.join(os.path.dirname(__file__), '..', 'statistics')
-        QualityStatistics.finalize_diagnostics(stats_dir)
+        if generate_statistics:
+            print("\n=== Generating diagnostic plots and GIF ===")
+            stats_dir = os.path.join(os.path.dirname(__file__), '..', 'statistics')
+            QualityStatistics.finalize_diagnostics(stats_dir, frame_skip=frame_skip)
+        else:
+            print("\n=== Skipping statistics generation ===")
 
         total_runtime = time.time() - total_runtime_start
 

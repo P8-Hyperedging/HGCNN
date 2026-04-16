@@ -10,6 +10,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PIL import Image
 import numpy as np
 import io
+import time
 
 
 class QualityStatistics:
@@ -17,6 +18,7 @@ class QualityStatistics:
     
     # Class-level storage for diagnostic data
     diagnostic_data = []
+    frame_skip = 1  # Will be set during training to match GIF rendering
     
     @staticmethod
     def collect_diagnostic_data(Q, total_dists, total_dists_normalized, distance_scores, Q_updated):
@@ -43,20 +45,21 @@ class QualityStatistics:
         QualityStatistics.diagnostic_data.append(data)
         forward_pass_num = len(QualityStatistics.diagnostic_data) - 1
         
-        # Log statistics to console
-        Q_cpu = data['Q']
-        total_dists_cpu = data['total_dists']
-        total_dists_normalized_cpu = data['total_dists_normalized']
-        distance_scores_cpu = data['distance_scores']
-        Q_updated_cpu = data['Q_updated']
-        
-        print(f"\n=== Forward Pass {forward_pass_num} ===")
-        print(f"Initial Q - Min: {Q_cpu.min():.6f}, Max: {Q_cpu.max():.6f}, Mean: {Q_cpu.mean():.6f}")
-        print(f"Total Dists (raw) - Min: {total_dists_cpu.min():.6f}, Max: {total_dists_cpu.max():.6f}, Mean: {total_dists_cpu.mean():.6f}")
-        print(f"Total Dists (normalized) - Min: {total_dists_normalized_cpu.min():.6f}, Max: {total_dists_normalized_cpu.max():.6f}, Mean: {total_dists_normalized_cpu.mean():.6f}")
-        print(f"Distance Scores - Min: {distance_scores_cpu.min():.6f}, Max: {distance_scores_cpu.max():.6f}, Mean: {distance_scores_cpu.mean():.6f}")
-        print(f"Q Updated - Min: {Q_updated_cpu.min():.6f}, Max: {Q_updated_cpu.max():.6f}, Mean: {Q_updated_cpu.mean():.6f}")
-        print(f"Num Q values at exactly 0.0: {(Q_updated_cpu == 0.0).sum()} / {len(Q_updated_cpu)}")
+        # Only print statistics for frames that will be rendered in GIF (based on frame_skip)
+        if forward_pass_num % QualityStatistics.frame_skip == 0:
+            Q_cpu = data['Q']
+            total_dists_cpu = data['total_dists']
+            total_dists_normalized_cpu = data['total_dists_normalized']
+            distance_scores_cpu = data['distance_scores']
+            Q_updated_cpu = data['Q_updated']
+            
+            print(f"\n=== Forward Pass {forward_pass_num} ===")
+            print(f"Initial Q - Min: {Q_cpu.min():.6f}, Max: {Q_cpu.max():.6f}, Mean: {Q_cpu.mean():.6f}")
+            print(f"Total Dists (raw) - Min: {total_dists_cpu.min():.6f}, Max: {total_dists_cpu.max():.6f}, Mean: {total_dists_cpu.mean():.6f}")
+            print(f"Total Dists (normalized) - Min: {total_dists_normalized_cpu.min():.6f}, Max: {total_dists_normalized_cpu.max():.6f}, Mean: {total_dists_normalized_cpu.mean():.6f}")
+            print(f"Distance Scores - Min: {distance_scores_cpu.min():.6f}, Max: {distance_scores_cpu.max():.6f}, Mean: {distance_scores_cpu.mean():.6f}")
+            print(f"Q Updated - Min: {Q_updated_cpu.min():.6f}, Max: {Q_updated_cpu.max():.6f}, Mean: {Q_updated_cpu.mean():.6f}")
+            print(f"Num Q values at exactly 0.0: {(Q_updated_cpu == 0.0).sum()} / {len(Q_updated_cpu)}")
     
     @staticmethod
     def figure_to_pil_image(fig):
@@ -80,13 +83,14 @@ class QualityStatistics:
         return img
     
     @staticmethod
-    def create_diagnostics_gif_direct(stats_dir):
+    def create_diagnostics_gif_direct(stats_dir, frame_skip=1):
         """
         Create a GIF directly from collected diagnostic data without saving intermediate PNGs.
         All figures are rendered to PIL Images in memory.
         
         Args:
             stats_dir: Directory to save the final GIF
+            frame_skip: Only render every Nth frame (e.g., frame_skip=2 renders frames 0, 2, 4, ...)
         
         Returns:
             Path to the created GIF file, or None if no data collected
@@ -95,11 +99,23 @@ class QualityStatistics:
             print("No diagnostic data to create GIF from.")
             return None
         
-        print(f"\nCreating GIF directly from {len(QualityStatistics.diagnostic_data)} diagnostic frames...")
+        # Get frames to render based on frame_skip
+        frame_indices = range(0, len(QualityStatistics.diagnostic_data), frame_skip)
+        total_frames = len(QualityStatistics.diagnostic_data)
+        frames_to_render = len(frame_indices)
         
+        print(f"\n{'='*60}")
+        print(f"GIF Generation Starting")
+        print(f"Total frames: {total_frames} | Rendering: {frames_to_render} (skip={frame_skip})")
+        print(f"{'='*60}")
+        
+        start_time = time.time()
         images = []
         
-        for forward_pass_num, data in enumerate(QualityStatistics.diagnostic_data):
+        for render_idx, forward_pass_num in enumerate(frame_indices):
+            frame_start = time.time()
+            
+            data = QualityStatistics.diagnostic_data[forward_pass_num]
             Q_cpu = data['Q']
             total_dists_normalized_cpu = data['total_dists_normalized']
             distance_scores_cpu = data['distance_scores']
@@ -147,20 +163,37 @@ class QualityStatistics:
             images.append(pil_image)
             
             plt.close(fig)
+            
+            frame_time = time.time() - frame_start
+            progress = (render_idx + 1) / frames_to_render * 100
+            print(f"[{render_idx + 1:>3d}/{frames_to_render}] Frame {forward_pass_num:>3d} rendered ({progress:>5.1f}%) - {frame_time:.2f}s")
+        
+        render_time = time.time() - start_time
+        print(f"\nAll {total_frames} frames rendered in {render_time:.2f}s")
         
         # Create GIF from PIL Images
+        print("\nAssembling GIF...", end='', flush=True)
         os.makedirs(stats_dir, exist_ok=True)
         gif_path = os.path.join(stats_dir, 'quality_diagnostics.gif')
         
         if images:
+            gif_start = time.time()
             images[0].save(
                 gif_path,
                 save_all=True,
                 append_images=images[1:],
-                duration=50,  # 1 second per frame
-                loop=0  # Loop infinitely
+                duration=100,
+                loop=0
             )
-            print(f"GIF created successfully: {gif_path}")
+            gif_time = time.time() - gif_start
+            print(f" Done! ({gif_time:.2f}s)")
+            
+            total_time = time.time() - start_time
+            print(f"\n{'='*60}")
+            print(f"GIF created successfully!")
+            print(f"File: {gif_path}")
+            print(f"Total time: {total_time:.2f}s")
+            print(f"{'='*60}")
         else:
             print("No images to create GIF from.")
             return None
@@ -168,13 +201,14 @@ class QualityStatistics:
         return gif_path
     
     @staticmethod
-    def finalize_diagnostics(stats_dir):
+    def finalize_diagnostics(stats_dir, frame_skip=1):
         """
         Generate GIF directly from collected diagnostic data after training completes.
         No intermediate PNG files are created - everything happens in memory.
         
         Args:
             stats_dir: Directory to save outputs
+            frame_skip: Only render every Nth frame (e.g., frame_skip=2 renders frames 0, 2, 4, ...)
         
         Returns:
             Path to the created GIF file, or None if no data collected
@@ -183,4 +217,4 @@ class QualityStatistics:
             print("No diagnostic data to finalize.")
             return None
         
-        return QualityStatistics.create_diagnostics_gif_direct(stats_dir)
+        return QualityStatistics.create_diagnostics_gif_direct(stats_dir, frame_skip=frame_skip)
