@@ -10,6 +10,7 @@ import sys
 
 import torch
 from model.QualityHGNN_V2.QHGNN import QHGNN_v2
+from model.QualityHGNN_V2.layers import QHGNN_conv_v2
 from torch import device, optim, split
 
 from data.data import *
@@ -121,6 +122,10 @@ class Train_QHGNN_v2:
         criterion = torch.nn.CrossEntropyLoss()
 
         model_ft, valid_acc, train_runtime = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
+
+        # Generate GIF from diagnostics and clean up PNGs
+        print("\n=== Generating diagnostic GIF ===")
+        QHGNN_conv_v2.create_diagnostics_gif()
 
         total_runtime = time.time() - total_runtime_start
 
