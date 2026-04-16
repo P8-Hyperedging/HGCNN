@@ -48,7 +48,11 @@ class QHGNN_conv_v2(nn.Module):
                 dists = dists * membership[:, start:end]           # zero out non-members
                 total_dists[start:end] = dists.sum(dim=0)
 
-            distance_scores = 1.0 / (1.0 + total_dists)           # (E,)
+
+            # Normalize total_dists by its mean to keep distance_scores in reasonable range
+            mean_total_dists = total_dists.mean()
+            total_dists_normalized = total_dists / (mean_total_dists + 1e-8)  # Add small epsilon to avoid division by zero
+            distance_scores = 1.0 / (1.0 + total_dists_normalized)           # (E,)
             Q_updated = torch.clamp(distance_scores * Q, min=0, max=10)
 
             print(f"Q sample values after update: {Q_updated[:10]}")
