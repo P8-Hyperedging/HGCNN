@@ -266,38 +266,40 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
             else:
                 print(msg)
             
-            # Plot quality score evolution at print_freq intervals
-            if plot_epochs and plot_quality_scores_dict_layer1:
-                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 7))
+            # Plot quality score distribution at print_freq intervals
+            if plot_quality_scores_dict_layer1:
+                fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
                 
-                # Layer 1 plot
-                for edge in plot_random_edges:
-                    if plot_quality_scores_dict_layer1[edge]:
-                        ax1.plot(plot_epochs, 
-                                plot_quality_scores_dict_layer1[edge], 
-                                marker='o', linewidth=2, label=f'Edge {int(edge)}')
-                ax1.set_xlabel('Epoch', fontsize=12)
-                ax1.set_ylabel('Quality Score', fontsize=12)
-                ax1.set_title('Layer 1 - Quality Score Evolution', fontsize=14, fontweight='bold')
-                ax1.legend(loc='best', fontsize=10, ncol=2)
-                ax1.grid(True, alpha=0.3)
+                # Layer 1 distribution
+                layer1_values = np.array([v for values in plot_quality_scores_dict_layer1.values() for v in values])
+                if len(layer1_values) > 0:
+                    ax1.hist(layer1_values, bins=30, density=True, alpha=0.7, color='blue', edgecolor='black')
+                    mu, sigma = layer1_values.mean(), layer1_values.std()
+                    x = np.linspace(layer1_values.min(), layer1_values.max(), 100)
+                    ax1.plot(x, 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-0.5 * ((x - mu) / sigma) ** 2), 'r-', linewidth=2, label='Bell Curve')
+                    ax1.set_xlabel('Quality Score', fontsize=12)
+                    ax1.set_ylabel('Density', fontsize=12)
+                    ax1.set_title(f'Layer 1 - Quality Score Distribution (Epoch {epoch})', fontsize=14, fontweight='bold')
+                    ax1.legend()
+                    ax1.grid(True, alpha=0.3)
                 
-                # Layer 2 plot
-                for edge in plot_random_edges:
-                    if plot_quality_scores_dict_layer2[edge]:
-                        ax2.plot(plot_epochs, 
-                                plot_quality_scores_dict_layer2[edge], 
-                                marker='o', linewidth=2, label=f'Edge {int(edge)}')
-                ax2.set_xlabel('Epoch', fontsize=12)
-                ax2.set_ylabel('Quality Score', fontsize=12)
-                ax2.set_title('Layer 2 - Quality Score Evolution', fontsize=14, fontweight='bold')
-                ax2.legend(loc='best', fontsize=10, ncol=2)
-                ax2.grid(True, alpha=0.3)
+                # Layer 2 distribution
+                layer2_values = np.array([v for values in plot_quality_scores_dict_layer2.values() for v in values])
+                if len(layer2_values) > 0:
+                    ax2.hist(layer2_values, bins=30, density=True, alpha=0.7, color='green', edgecolor='black')
+                    mu, sigma = layer2_values.mean(), layer2_values.std()
+                    x = np.linspace(layer2_values.min(), layer2_values.max(), 100)
+                    ax2.plot(x, 1/(sigma * np.sqrt(2 * np.pi)) * np.exp(-0.5 * ((x - mu) / sigma) ** 2), 'r-', linewidth=2, label='Bell Curve')
+                    ax2.set_xlabel('Quality Score', fontsize=12)
+                    ax2.set_ylabel('Density', fontsize=12)
+                    ax2.set_title(f'Layer 2 - Quality Score Distribution (Epoch {epoch})', fontsize=14, fontweight='bold')
+                    ax2.legend()
+                    ax2.grid(True, alpha=0.3)
                 
                 plt.tight_layout()
-                plot_filename = f'quality_scores_epoch_{epoch}.png'
+                plot_filename = f'quality_scores_distribution_epoch_{epoch}.png'
                 plt.savefig(plot_filename, dpi=100)
-                print(f"Quality score plot saved to {plot_filename}")
+                print(f"Quality score distribution plot saved to {plot_filename}")
                 plt.close()
 
     time_elapsed = time.time() - since

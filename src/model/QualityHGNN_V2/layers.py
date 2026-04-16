@@ -50,6 +50,7 @@ class QHGNN_conv_v2(nn.Module):
 
             distance_scores = 1.0 / (1.0 + total_dists)           # (E,)
             Q_updated = torch.clamp(distance_scores * Q, min=0, max=10)
+            self.Q_updated = Q_updated  # Store for tracking
 
             print(f"Q sample values after update: {Q_updated[:10]}")
             G = (LS * Q_updated.unsqueeze(0)).matmul(RS)
