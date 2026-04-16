@@ -1,4 +1,3 @@
-import json
 import psycopg2
 import numpy as np
 from psycopg2 import sql
@@ -204,15 +203,3 @@ def group_reviews_by_user(reviews):
         user_to_businesses[r['user_id']].add((r['business_id'], r['stars']))
 
     return user_to_businesses
-
-
-def output_metrics_to_db(model_name, training_time, total_runtime, parameters, train_acc=None, valid_acc=None, test_acc=None, seed=None, job_id=None):
-    conn = psycopg2.connect(**params)
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""INSERT INTO model_output (job_id, training_time, total_runtime, seed, train_acc, valid_acc, test_acc, parameters, model_name)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""", (job_id, training_time, total_runtime, seed, train_acc, valid_acc, test_acc, parameters, model_name))
-            conn.commit()
-    finally:
-        conn.close()
-

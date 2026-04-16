@@ -8,7 +8,8 @@ import torch
 import sys
 from torch import optim
 
-from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data, output_metrics_to_db
+import modelResult
+from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data
 from data.n_preprocessing import build_hypergraph_incidence_matrix, create_business_feature_matrix, create_label_vector
 from utils.utils import generate_G_from_H
 from utils.utils import generate_G_from_H
@@ -34,7 +35,7 @@ class Train_MoonLabHGNN:
             job_id=None,
             seed = None,
             socket_logger=None
-            ):
+            ) -> modelResult.ModelResult:
         total_runtime_start = time.time()
 
         if seed == None:
@@ -111,17 +112,7 @@ class Train_MoonLabHGNN:
 
         parameters_json = json.dumps(parameters)
 
-
-        output_metrics_to_db(
-            model_name=model_name,
-            training_time=train_runtime,
-            total_runtime=total_runtime,
-            parameters=parameters_json,
-            #Psycopg2 doesn't play nice when a tensor is parsed. Therefore check if valid_acc is tensor and convert to float if so.
-            valid_acc=float(valid_acc.item()*100) if torch.is_tensor(valid_acc) else valid_acc*100,
-            seed=seed,
-            job_id=job_id
-        )
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc, 0, total_runtime, parameters_json, seed, job_id)
 
 def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
