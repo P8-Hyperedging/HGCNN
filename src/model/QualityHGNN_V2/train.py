@@ -1,6 +1,7 @@
 
 import time
 import copy
+import os
 import numpy as np
 import torch
 from torchmetrics.classification import MulticlassConfusionMatrix, MulticlassF1Score, MulticlassPrecision, MulticlassRecall
@@ -10,11 +11,11 @@ import sys
 
 import torch
 from model.QualityHGNN_V2.QHGNN import QHGNN_v2
-from model.QualityHGNN_V2.layers import QHGNN_conv_v2
 from torch import device, optim, split
 
 from data.data import *
 from data.n_preprocessing import *
+from data.statistics import QualityStatistics
 from utils.utils import *
 
 
@@ -123,9 +124,10 @@ class Train_QHGNN_v2:
 
         model_ft, valid_acc, train_runtime = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
 
-        # Generate GIF from diagnostics and clean up PNGs
-        print("\n=== Generating diagnostic GIF ===")
-        QHGNN_conv_v2.create_diagnostics_gif()
+        # Generate diagnostic plots and GIF after training completes (VRAM-efficient approach)
+        print("\n=== Generating diagnostic plots and GIF ===")
+        stats_dir = os.path.join(os.path.dirname(__file__), '..', 'statistics')
+        QualityStatistics.finalize_diagnostics(stats_dir)
 
         total_runtime = time.time() - total_runtime_start
 
