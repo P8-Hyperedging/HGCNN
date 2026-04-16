@@ -94,7 +94,7 @@ class Train(Resource):
 
         if model not in options:
             return {"error": "Model not found."}, 404
-        
+
         if model == "allset" and float(data.get("valid_proportion", 0.25)) + float(data.get("train_proportion", 0.5)) > 1.0:
             return {"error": "Train proportion and valid proportion must sum to 1 or less."}, 400
 
@@ -115,16 +115,13 @@ class Train(Resource):
         # Generate unique job ID
         job_id = f"{model}_{datetime.now().timestamp()}"
 
-        # Start training in background thread
-        thread = threading.Thread(target=train_model_async, args=(model, parsed_data, job_id))
-        thread.daemon = True
-        thread.start()
+        train_model_async(model, parsed_data, job_id)
 
         return {
-            "status": "accepted",
-            "message": f"Training {model} model started in background",
+            "status": "completed",
+            "message": f"Training {model} model finished",
             "job_id": job_id
-        }, 202
+        }, 200
 
 def socket_logger(message, job_id=None, progress=None):
     socketio.emit(
