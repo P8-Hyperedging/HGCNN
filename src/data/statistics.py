@@ -1,14 +1,15 @@
 """
 Module for generating diagnostic statistics and visualizations for quality score distributions.
-Data is collected during training and plots are generated after training completes.
+Data is collected during training and GIF is generated directly without intermediate PNG files.
 """
 
 import os
-import glob
 import torch
 import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
 from PIL import Image
 import numpy as np
+import io
 
 
 class QualityStatistics:
@@ -58,24 +59,45 @@ class QualityStatistics:
         print(f"Num Q values at exactly 0.0: {(Q_updated_cpu == 0.0).sum()} / {len(Q_updated_cpu)}")
     
     @staticmethod
-    def generate_diagnostic_plots(stats_dir):
+    def figure_to_pil_image(fig):
         """
-        Generate all diagnostic PNG plots from collected data after training completes.
+        Convert a matplotlib figure to a PIL Image without saving to disk.
         
         Args:
-            stats_dir: Directory to save the plots
+            fig: matplotlib Figure object
         
         Returns:
-            List of paths to generated PNG files
+            PIL Image object
+        """
+        buf = io.BytesIO()
+        fig.savefig(buf, format='png', dpi=100, bbox_inches='tight')
+        buf.seek(0)
+        img = Image.open(buf)
+        img.load()  # Force load before closing buffer
+        # Convert to RGB if necessary (in case of RGBA)
+        if img.mode != 'RGB':
+            img = img.convert('RGB')
+        return img
+    
+    @staticmethod
+    def create_diagnostics_gif_direct(stats_dir):
+        """
+        Create a GIF directly from collected diagnostic data without saving intermediate PNGs.
+        All figures are rendered to PIL Images in memory.
+        
+        Args:
+            stats_dir: Directory to save the final GIF
+        
+        Returns:
+            Path to the created GIF file, or None if no data collected
         """
         if not QualityStatistics.diagnostic_data:
-            print("No diagnostic data collected to generate plots.")
-            return []
+            print("No diagnostic data to create GIF from.")
+            return None
         
-        os.makedirs(stats_dir, exist_ok=True)
-        png_paths = []
+        print(f"\nCreating GIF directly from {len(QualityStatistics.diagnostic_data)} diagnostic frames...")
         
-        print(f"\nGenerating {len(QualityStatistics.diagnostic_data)} diagnostic plots...")
+        images = []
         
         for forward_pass_num, data in enumerate(QualityStatistics.diagnostic_data):
             Q_cpu = data['Q']
@@ -119,19 +141,37 @@ class QualityStatistics:
             cbar.set_label('Initial Q')
             
             plt.tight_layout()
-            plot_path = os.path.join(stats_dir, f'diagnostics_{forward_pass_num}.png')
-            plt.savefig(plot_path, dpi=100, bbox_inches='tight')
-            plt.close()
-            png_paths.append(plot_path)
+            
+            # Convert figure to PIL Image directly (no disk I/O)
+            pil_image = QualityStatistics.figure_to_pil_image(fig)
+            images.append(pil_image)
+            
+            plt.close(fig)
         
-        print(f"Generated {len(png_paths)} diagnostic plots.")
-        return png_paths
+        # Create GIF from PIL Images
+        os.makedirs(stats_dir, exist_ok=True)
+        gif_path = os.path.join(stats_dir, 'quality_diagnostics.gif')
+        
+        if images:
+            images[0].save(
+                gif_path,
+                save_all=True,
+                append_images=images[1:],
+                duration=50,  # 1 second per frame
+                loop=0  # Loop infinitely
+            )
+            print(f"GIF created successfully: {gif_path}")
+        else:
+            print("No images to create GIF from.")
+            return None
+        
+        return gif_path
     
     @staticmethod
     def finalize_diagnostics(stats_dir):
         """
-        Generate all diagnostic plots and GIF after training completes.
-        This should be called once after training finishes.
+        Generate GIF directly from collected diagnostic data after training completes.
+        No intermediate PNG files are created - everything happens in memory.
         
         Args:
             stats_dir: Directory to save outputs
@@ -143,63 +183,4 @@ class QualityStatistics:
             print("No diagnostic data to finalize.")
             return None
         
-        # Generate all PNG plots from collected data
-        QualityStatistics.generate_diagnostic_plots(stats_dir)
-        
-        # Create GIF from the generated PNGs
-        QualityStatistics.create_diagnostics_gif(stats_dir)
-        
-        return os.path.join(stats_dir, 'quality_diagnostics.gif')
-    
-    @staticmethod
-    def create_diagnostics_gif(stats_dir):
-        """
-        Create an animated GIF from all diagnostic PNG files in the statistics folder.
-        Deletes PNG files after GIF is created.
-        
-        Args:
-            stats_dir: Path to statistics folder
-        
-        Returns:
-            Path to the created GIF file, or None if no images found.
-        """
-        stats_dir = os.path.abspath(stats_dir)
-        
-        # Find all diagnostic PNG files and sort by number
-        png_files = sorted(glob.glob(os.path.join(stats_dir, 'diagnostics_*.png')),
-                          key=lambda x: int(os.path.basename(x).split('_')[1].split('.')[0]))
-        
-        if not png_files:
-            print(f"No diagnostic PNG files found in {stats_dir}")
-            return None
-        
-        print(f"Creating GIF from {len(png_files)} diagnostic images...")
-        
-        # Load images
-        images = []
-        for png_file in png_files:
-            img = Image.open(png_file)
-            images.append(img)
-        
-        # Create GIF (1000 ms = 1 second per frame)
-        gif_path = os.path.join(stats_dir, 'quality_diagnostics.gif')
-        images[0].save(
-            gif_path,
-            save_all=True,
-            append_images=images[1:],
-            duration=1000,  # 1 second per frame
-            loop=0  # Loop infinitely
-        )
-        
-        print(f"GIF created successfully: {gif_path}")
-        
-        # Delete PNG files after GIF creation
-        print(f"Deleting {len(png_files)} PNG diagnostic files...")
-        for png_file in png_files:
-            try:
-                os.remove(png_file)
-            except Exception as e:
-                print(f"Warning: Could not delete {png_file}: {e}")
-        
-        print("PNG files deleted. Only GIF remains.")
-        return gif_path
+        return QualityStatistics.create_diagnostics_gif_direct(stats_dir)
