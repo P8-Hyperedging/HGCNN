@@ -9,11 +9,14 @@ import json
 import sys
 
 import torch
+
+import modelResult
 from model.QualityHGNN.QHGNN import QHGNN
 from torch import device, optim, split
 
 from data.data import *
 from data.n_preprocessing import *
+from modelResult import ModelResult
 from utils.utils import *
 
 
@@ -33,7 +36,7 @@ class Train_QHGNN:
               job_id=None,
               seed = None,
               socket_logger=None
-              ):
+              ) -> modelResult.ModelResult:
         total_runtime_start = time.time()
 
         if seed == None:
@@ -126,17 +129,7 @@ class Train_QHGNN:
 
         parameters_json = json.dumps(parameters)
 
-
-        output_metrics_to_db(
-            model_name=model_name,
-            job_id=job_id,
-            training_time=train_runtime,
-            total_runtime=total_runtime,
-            parameters=parameters_json,
-            #Psycopg2 doesn't play nice when a tensor is parsed. Therefore check if valid_acc is tensor and convert to float if so.
-            valid_acc=float(valid_acc.item()*100) if torch.is_tensor(valid_acc) else valid_acc*100,
-            seed=seed
-        )
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc, 0, total_runtime, parameters_json, seed, job_id)
 
 
 def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):

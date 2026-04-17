@@ -1,12 +1,14 @@
+from dataclasses import asdict
+
 from flask import Flask, jsonify, request
 from flask_restx import Api, Resource, fields
 from flask_socketio import SocketIO
+
+import modelResult
 from model.QualityHGNN.train import Train_QHGNN
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 from model.AllSetTransformer.train import Train_AllSetTransformer
 from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, serialize
-import time
-import threading
 from datetime import datetime
 import traceback
 
@@ -85,10 +87,10 @@ class Parameters(Resource):
             case _:
                 return {"error": "Model not found."}, 404
 
-@api.route("/train/<model>")
+@api.route("/train/<model>/<job_id>")
 class Train(Resource):
     @api.expect(train_params_model)
-    def post(self, model: str):
+    def post(self, model: str, job_id: str):
         """Train a model with specified parameters (async)"""
         data = request.get_json() or {}
 
@@ -112,15 +114,13 @@ class Train(Resource):
             else:
                 parsed_data[k] = v
 
-        # Generate unique job ID
-        job_id = f"{model}_{datetime.now().timestamp()}"
-
-        train_model_async(model, parsed_data, job_id)
+        res = train_model_async(model, parsed_data, job_id)
 
         return {
             "status": "completed",
             "message": f"Training {model} model finished",
-            "job_id": job_id
+            "job_id": job_id,
+            "result": res
         }, 200
 
 def socket_logger(message, job_id=None, progress=None):
@@ -143,12 +143,12 @@ def train_model_async(model: str, data: dict, job_id: str):
         "started_at": datetime.now().isoformat(),
         "message": f"Training {model} model..."
     }
-
+    res = None
     try:
         match model:
             case "qhgnn":
                 trainer = Train_QHGNN()
-                trainer.train(
+                res = trainer.train(
                     num_epochs=data.get("num_epochs", 1000),
                     lr=data.get("lr", 0.001),
                     hidden_layer_size=data.get("hidden_layer_size", 128),
@@ -163,7 +163,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                 )
             case "allset":
                 trainer = Train_AllSetTransformer()
-                trainer.train(
+                res = trainer.train(
                     num_epochs=data.get("num_epochs", 1000),
                     lr=data.get("lr", 0.001),
                     hidden_layer_size=data.get("hidden_layer_size", 64),
@@ -177,7 +177,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                 )
             case "moonlab":
                 trainer = Train_MoonLabHGNN()
-                trainer.train(
+                res = trainer.train(
                     num_epochs=data.get("num_epochs", 1000),
                     lr=data.get("lr", 0.001),
                     hidden_layer_size=data.get("hidden_layer_size", 128),
@@ -195,22 +195,13 @@ def train_model_async(model: str, data: dict, job_id: str):
         print("Oops")
         print(f"Error: {str(e)}")
         traceback.print_exc()
+    return asdict(res)
 
 @socketio.on("subscribe_job")
 def handle_subscribe(data):
     job_id = data.get("job_id")
     if not job_id:
         return
-
-    # Send current job history to this client
-    with jobs_lock:
-        job = jobs.get(job_id, {"progress": 0, "logs": []})
-
-    for msg in job["logs"]:
-        socketio.emit(
-            "job_update",
-            {"job_id": job_id, "message": msg, "progress": job["progress"]},
-        )
 
 
 @socketio.on("connect")
