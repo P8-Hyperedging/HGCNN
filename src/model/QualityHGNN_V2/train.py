@@ -151,6 +151,13 @@ class Train_QHGNN_v2:
 def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None):
     since = time.time()
 
+    # Early stopping parameters
+    patience = 20
+    best_f1 = 0.0
+    epochs_no_improve = 0
+    stop_training = False
+
+
     n_class = int(lbls.max()) + 1
     f1_metric = MulticlassF1Score(num_classes=n_class, average="macro").to(fts.device)
     precision_metric = MulticlassPrecision(num_classes=n_class, average="macro").to(fts.device)
@@ -216,6 +223,14 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
                 recall = recall_metric(preds[idx], lbls[idx])
                 confusion = confusion_metric(preds[idx], lbls[idx]).detach().cpu().tolist()
                 confusion_rows = "\n".join(str(row) for row in confusion) # Newline between rows to make it readable
+                # Early stopping check based on F1 score improvement
+                if f1 > best_f1 + 1e-4:
+                    best_f1 = f1
+                    best_acc = epoch_acc
+                    best_model_wts = copy.deepcopy(model.state_dict())
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
 
             if epoch % print_freq == 0:
                 if phase == 'val':
@@ -235,11 +250,17 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
                         print('Confusion Matrix:')
                         print(confusion_rows)
 
-            # deep copy the model
-            if phase == 'val' and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model_wts = copy.deepcopy(model.state_dict())
+            # Early stopping check after validation phase
+            if epochs_no_improve >= patience:
+                stop_training = True
+                if socket_logger:
+                    socket_logger(f'Early stopping at epoch {epoch} with best F1: {best_f1:.4f}', job_id=job_id, progress=epoch)
+                else:
+                    print(f'Early stopping at epoch {epoch} with best F1: {best_f1:.4f}')
+                break
 
+        if stop_training:
+            break
 
         if epoch % print_freq == 0:
             msg = f'Best val Acc: {best_acc:4f}'
