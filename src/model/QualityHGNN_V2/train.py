@@ -136,7 +136,7 @@ class Train_QHGNN_v2:
         parameters_json = json.dumps(parameters)
 
 
-        output_metrics_to_db(
+        log_model_metrics(
             model_name=model_name,
             job_id=job_id,
             training_time=train_runtime,

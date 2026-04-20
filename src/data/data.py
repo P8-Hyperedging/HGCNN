@@ -205,7 +205,7 @@ def group_reviews_by_user(reviews):
     return user_to_businesses
 
 
-def output_metrics_to_db(model_name, job_id, training_time, total_runtime, parameters, valid_acc, valid_f1=None, seed=None):
+def log_model_metrics(model_name, job_id, training_time, total_runtime, parameters, valid_acc, valid_f1=None, seed=None):
     import json
     params = json.loads(parameters) if isinstance(parameters, str) else parameters
     sep = "=" * 50
