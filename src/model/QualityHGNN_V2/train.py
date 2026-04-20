@@ -122,7 +122,7 @@ class Train_QHGNN_v2:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, valid_f1, train_runtime = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -134,6 +134,7 @@ class Train_QHGNN_v2:
             "Epochs": num_epochs,
             "Train Proportion": train_proportion,
             "Dropout": dropout,
+            "Total Epochs": total_epochs
         }
 
         parameters_json = json.dumps(parameters)
@@ -150,9 +151,18 @@ class Train_QHGNN_v2:
             seed=seed
         )
 
+        return total_epochs
+
 
 def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None):
     since = time.time()
+
+    # Early stopping parameters
+    patience = 100
+    epochs_no_improve = 0
+    stop_training = False
+    total_epochs = 0
+
 
     n_class = int(lbls.max()) + 1
     f1_metric = MulticlassF1Score(num_classes=n_class, average="macro").to(fts.device)
@@ -167,6 +177,8 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
     best_f1 = 0.0
 
     for epoch in range(num_epochs):
+        total_epochs += 1
+
         if epoch % print_freq == 0:
             seperator = '-' * 10
             msg = f'Epoch {epoch}/{num_epochs - 1}'
@@ -210,6 +222,14 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
                 recall = recall_metric(preds[idx], lbls[idx])
                 confusion = confusion_metric(preds[idx], lbls[idx]).detach().cpu().tolist()
                 confusion_rows = "\n".join(str(row) for row in confusion) # Newline between rows to make it readable
+                best_f1 = f1 if f1 > best_f1 else best_f1
+                # Early stopping check based on validation accuracy improvement
+                if epoch_acc > best_acc + 1e-4:
+                    best_acc = epoch_acc
+                    best_model_wts = copy.deepcopy(model.state_dict())
+                    epochs_no_improve = 0
+                else:
+                    epochs_no_improve += 1
 
             if epoch % print_freq == 0:
                 if phase == 'val':
@@ -229,12 +249,17 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
                         print('Confusion Matrix:')
                         print(confusion_rows)
 
-            # deep copy the model
-            if phase == 'val' and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_f1 = f1
-                best_model_wts = copy.deepcopy(model.state_dict())
+            # Early stopping check after validation phase
+            if epochs_no_improve >= patience:
+                stop_training = True
+                if socket_logger:
+                    socket_logger(f'Early stopping at epoch {epoch} with best val Acc: {best_acc:.4f}', job_id=job_id, progress=epoch)
+                else:
+                    print(f'Early stopping at epoch {epoch} with best val Acc: {best_acc:.4f}')
+                break
 
+        if stop_training:
+            break
 
         if epoch % print_freq == 0:
             msg = f'Best val Acc: {best_acc:4f}'
@@ -260,4 +285,4 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    return model, best_acc, best_f1, time_elapsed
+    return model, best_acc, best_f1, time_elapsed, total_epochs
