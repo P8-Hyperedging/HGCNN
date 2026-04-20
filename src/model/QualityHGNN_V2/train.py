@@ -20,7 +20,6 @@ from utils.utils import *
 class Train_QHGNN_v2:
     def __init__(self):
         self.reviews = load_postgres_review_data()
-        self.patience = 10
 
     def train(self, num_epochs=200,
               lr=0.001,
@@ -34,7 +33,8 @@ class Train_QHGNN_v2:
               quality_weight=1.0,
               job_id=None,
               seed = None,
-              socket_logger=None
+              socket_logger=None,
+              patience=100
               ):
         total_runtime_start = time.time()
 
@@ -123,7 +123,7 @@ class Train_QHGNN_v2:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger, patience=patience)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -135,10 +135,11 @@ class Train_QHGNN_v2:
             "Epochs": num_epochs,
             "Train Proportion": train_proportion,
             "Dropout": dropout,
-            "Total Epochs": total_epochs
+            "Total Epochs": total_epochs,
+            "Patience": patience,
         }
 
-        parameters_json = json.dumps({**parameters, "Patience": self.patience})
+        parameters_json = json.dumps(parameters)
 
 
         log_model_metrics(
@@ -155,7 +156,7 @@ class Train_QHGNN_v2:
         return total_epochs
 
 
-    def train_model_QHGNN_v2(self, model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None):
+    def train_model_QHGNN_v2(self, model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None, patience=None):
         since = time.time()
 
         # Early stopping parameters
@@ -250,7 +251,7 @@ class Train_QHGNN_v2:
                             print(confusion_rows)
 
                 # Early stopping check after validation phase
-                if epochs_no_improve >= self.patience:
+                if epochs_no_improve >= patience:
                     stop_training = True
                     if socket_logger:
                         socket_logger(f'Early stopping at epoch {epoch} with best val Acc: {best_acc:.4f}', job_id=job_id, progress=epoch)
