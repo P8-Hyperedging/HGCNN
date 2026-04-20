@@ -5,9 +5,10 @@ from torch.nn.parameter import Parameter
 
 
 class QHGNN_conv_v2(nn.Module):
-    def __init__(self, in_ft, out_ft, bias=True):
+    def __init__(self, in_ft, out_ft, bias=True, quality=False):
         super(QHGNN_conv_v2, self).__init__()
 
+        self.quality = quality
         self.weight = Parameter(torch.Tensor(in_ft, out_ft)) # Create new feature matrix for hidden layer
         if bias:
             self.bias = Parameter(torch.Tensor(out_ft))
@@ -27,6 +28,11 @@ class QHGNN_conv_v2(nn.Module):
         x = x.matmul(self.weight)
         if self.bias is not None:
             x = x + self.bias
+
+        if not self.quality:
+            G = LS.matmul(RS)
+            x = G.matmul(x)
+            return x
 
         with torch.no_grad():
             membership = (LS > 0).float()                          # (N, E)
@@ -48,10 +54,13 @@ class QHGNN_conv_v2(nn.Module):
                 dists = dists * membership[:, start:end]           # zero out non-members
                 total_dists[start:end] = dists.sum(dim=0)
 
-            distance_scores = 1.0 / (1.0 + total_dists)           # (E,)
+
+            # Normalize total_dists by its mean to keep distance_scores in reasonable range
+            mean_total_dists = total_dists.mean()
+            total_dists_normalized = total_dists / (mean_total_dists + 1e-8)  # Add small epsilon to avoid division by zero
+            distance_scores = 1.0 / (1.0 + total_dists_normalized)           # (E,)
             Q_updated = torch.clamp(distance_scores * Q, min=0, max=10)
 
-            print(f"Q sample values after update: {Q_updated[:10]}")
             G = (LS * Q_updated.unsqueeze(0)).matmul(RS)
 
         x = G.matmul(x)

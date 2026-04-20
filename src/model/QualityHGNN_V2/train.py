@@ -120,7 +120,7 @@ class Train_QHGNN_v2:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, valid_f1, train_runtime = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -136,14 +136,14 @@ class Train_QHGNN_v2:
         parameters_json = json.dumps(parameters)
 
 
-        output_metrics_to_db(
+        log_model_metrics(
             model_name=model_name,
             job_id=job_id,
             training_time=train_runtime,
             total_runtime=total_runtime,
             parameters=parameters_json,
-            #Psycopg2 doesn't play nice when a tensor is parsed. Therefore check if valid_acc is tensor and convert to float if so.
-            valid_acc=float(valid_acc.item()*100) if torch.is_tensor(valid_acc) else valid_acc*100,
+            valid_acc=float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else valid_acc * 100,
+            valid_f1=float(valid_f1.item()) if torch.is_tensor(valid_f1) else float(valid_f1),
             seed=seed
         )
 
@@ -167,6 +167,7 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
+    best_f1 = 0.0
 
     for epoch in range(num_epochs):
         if epoch % print_freq == 0:
@@ -197,7 +198,6 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
             with torch.set_grad_enabled(phase == 'train'):
                 outputs = model(fts, LS, RS, Q)
                 loss = criterion(outputs[idx], lbls[idx])
-                print(f"Loss computed: {loss.item()}")
                 _, preds = torch.max(outputs, 1)
 
                 # backward + optimize only if in training phase
@@ -225,6 +225,7 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
                 # Early stopping check based on validation accuracy improvement
                 if epoch_acc > best_acc + 1e-4:
                     best_acc = epoch_acc
+                    best_f1 = f1
                     best_model_wts = copy.deepcopy(model.state_dict())
                     epochs_no_improve = 0
                 else:
@@ -284,4 +285,4 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    return model, best_acc, time_elapsed
+    return model, best_acc, best_f1, time_elapsed

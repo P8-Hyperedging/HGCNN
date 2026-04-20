@@ -1,19 +1,27 @@
+from dataclasses import asdict
+
 from flask import Flask, jsonify, request
 from flask_restx import Api, Resource, fields
 from flask_socketio import SocketIO
-from job_store import jobs, jobs_lock
+
+import modelResult
 from model.QualityHGNN.train import Train_QHGNN
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 from model.AllSetTransformer.train import Train_AllSetTransformer
 from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, serialize
-import time
-import threading
 from datetime import datetime
 import traceback
 
+ALLOWED_ORIGINS = {"http://localhost:8000", "http://127.0.0.1:8000", "http://0.0.0.0:8000"}
+ALLOWED_HOSTS = {"localhost:5002", "127.0.0.1:5002"}
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(
+    app,
+    cors_allowed_origins=list(ALLOWED_ORIGINS),
+    async_mode="threading"
+)
 api = Api(app, version='1.0', title='HGCNN API',
           description='Hypergraph Neural Network Training API',
           doc='/docs')
@@ -43,6 +51,17 @@ model_option_model = api.model('ModelOption', {
 
 options=["allset","moonlab", "qhgnn"]
 
+
+@app.before_request
+def restrict_to_localhost_frontend():
+    host = request.host.split("@")[-1]
+    if host not in ALLOWED_HOSTS:
+        return {"error": "Forbidden host."}, 403
+
+    origin = request.headers.get("Origin")
+    if origin is not None and origin not in ALLOWED_ORIGINS:
+        return {"error": "Forbidden origin. Only localhost:8000 is allowed."}, 403
+
 @app.route("/")
 def home():
     return "Hello, World! This is a Flask HTTP server."
@@ -68,16 +87,16 @@ class Parameters(Resource):
             case _:
                 return {"error": "Model not found."}, 404
 
-@api.route("/train/<model>")
+@api.route("/train/<model>/<job_id>")
 class Train(Resource):
     @api.expect(train_params_model)
-    def post(self, model: str):
+    def post(self, model: str, job_id: str):
         """Train a model with specified parameters (async)"""
         data = request.get_json() or {}
 
         if model not in options:
             return {"error": "Model not found."}, 404
-        
+
         if model == "allset" and float(data.get("valid_proportion", 0.25)) + float(data.get("train_proportion", 0.5)) > 1.0:
             return {"error": "Train proportion and valid proportion must sum to 1 or less."}, 400
 
@@ -95,37 +114,16 @@ class Train(Resource):
             else:
                 parsed_data[k] = v
 
-        # Generate unique job ID
-        job_id = f"{model}_{datetime.now().timestamp()}"
-
-        # Start training in background thread
-        thread = threading.Thread(target=train_model_async, args=(model, parsed_data, job_id))
-        thread.daemon = True
-        thread.start()
+        res = train_model_async(model, parsed_data, job_id)
 
         return {
-            "status": "accepted",
-            "message": f"Training {model} model started in background",
-            "job_id": job_id
-        }, 202
-
-def background_thread():
-    count = 0
-    while True:
-        time.sleep(1)
-        count += 1
-        socketio.emit('live_update', {'count': count})
+            "status": "completed",
+            "message": f"Training {model} model finished",
+            "job_id": job_id,
+            "result": res
+        }, 200
 
 def socket_logger(message, job_id=None, progress=None):
-    with jobs_lock:
-        if job_id not in jobs:
-            jobs[job_id] = {"progress": 0, "logs": []}
-
-        if progress is not None:
-            jobs[job_id]["progress"] = progress
-
-        jobs[job_id]["logs"].append(message)
-
     socketio.emit(
         "job_update",
         {
@@ -145,12 +143,12 @@ def train_model_async(model: str, data: dict, job_id: str):
         "started_at": datetime.now().isoformat(),
         "message": f"Training {model} model..."
     }
-
+    res = None
     try:
         match model:
             case "qhgnn":
                 trainer = Train_QHGNN()
-                trainer.train(
+                res = trainer.train(
                     num_epochs=data.get("num_epochs", 1000),
                     lr=data.get("lr", 0.001),
                     hidden_layer_size=data.get("hidden_layer_size", 128),
@@ -165,7 +163,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                 )
             case "allset":
                 trainer = Train_AllSetTransformer()
-                trainer.train(
+                res = trainer.train(
                     num_epochs=data.get("num_epochs", 1000),
                     lr=data.get("lr", 0.001),
                     hidden_layer_size=data.get("hidden_layer_size", 64),
@@ -179,7 +177,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                 )
             case "moonlab":
                 trainer = Train_MoonLabHGNN()
-                trainer.train(
+                res = trainer.train(
                     num_epochs=data.get("num_epochs", 1000),
                     lr=data.get("lr", 0.001),
                     hidden_layer_size=data.get("hidden_layer_size", 128),
@@ -197,6 +195,7 @@ def train_model_async(model: str, data: dict, job_id: str):
         print("Oops")
         print(f"Error: {str(e)}")
         traceback.print_exc()
+    return asdict(res)
 
 @socketio.on("subscribe_job")
 def handle_subscribe(data):
@@ -204,19 +203,10 @@ def handle_subscribe(data):
     if not job_id:
         return
 
-    # Send current job history to this client
-    with jobs_lock:
-        job = jobs.get(job_id, {"progress": 0, "logs": []})
 
-    for msg in job["logs"]:
-        socketio.emit(
-            "job_update",
-            {"job_id": job_id, "message": msg, "progress": job["progress"]},
-        )
+@socketio.on("connect")
+def handle_connect(auth=None):
+    print("Client connected")
 
 if __name__ == "__main__":
-    thread = threading.Thread(target=background_thread)
-    thread.daemon = True
-    thread.start()
-    
-    socketio.run(app, host='0.0.0.0', port=5002)
+    socketio.run(app, host='127.0.0.1', port=5002, allow_unsafe_werkzeug=True)

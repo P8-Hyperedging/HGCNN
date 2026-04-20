@@ -1,4 +1,3 @@
-import json
 import psycopg2
 import numpy as np
 from psycopg2 import sql
@@ -206,13 +205,20 @@ def group_reviews_by_user(reviews):
     return user_to_businesses
 
 
-def output_metrics_to_db(model_name, training_time, total_runtime, parameters, train_acc=None, valid_acc=None, test_acc=None, seed=None, job_id=None):
-    conn = psycopg2.connect(**params)
-    try:
-        with conn.cursor() as cur:
-            cur.execute("""INSERT INTO model_output (job_id, training_time, total_runtime, seed, train_acc, valid_acc, test_acc, parameters, model_name)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""", (job_id, training_time, total_runtime, seed, train_acc, valid_acc, test_acc, parameters, model_name))
-            conn.commit()
-    finally:
-        conn.close()
-
+def log_model_metrics(model_name, job_id, training_time, total_runtime, parameters, valid_acc, valid_f1=None, seed=None):
+    import json
+    params = json.loads(parameters) if isinstance(parameters, str) else parameters
+    sep = "=" * 50
+    print(f"\n{sep}")
+    print(f"  RESULTS: {model_name}")
+    print(sep)
+    print(f"  Seed:            {seed}")
+    print(f"  Val Accuracy:    {valid_acc:.2f}%")
+    if valid_f1 is not None:
+        print(f"  Val Macro F1:    {valid_f1:.4f}")
+    print(f"  Training time:   {training_time:.1f}s")
+    print(f"  Total time:      {total_runtime:.1f}s")
+    print(f"  Hyperparameters:")
+    for k, v in params.items():
+        print(f"    {k}: {v}")
+    print(sep)
