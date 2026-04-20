@@ -1,0 +1,38 @@
+graph LR
+    subgraph DATA["Data Loading"]
+        direction TB
+        DB[(PostgreSQL<br/>Yelp DB)]
+        DB --> Reviews["Reviews<br/>(user_id, business_id, stars)"]
+        DB --> Businesses["Businesses<br/>(stars, location, hours, categories)"]
+    end
+
+    subgraph FEATURES["Feature Construction"]
+        direction TB
+        Businesses --> FM["Feature Matrix X<br/>(N x F)<br/>review_count | lng | lat | hours(14) | categories"]
+        Businesses --> LV["Label Vector<br/>(N,)<br/>stars -> 9 classes"]
+    end
+
+    subgraph HYPERGRAPH["Hypergraph Construction"]
+        direction TB
+        Reviews --> H["Incidence Matrix H<br/>(N x E)<br/>H_ij = 1 if business i<br/>reviewed by user j"]
+        Reviews --> Q["Quality Vector Q<br/>(E,)<br/>Q_j = 1 - var(stars_j) / 4.0"]
+
+        H --> DECOMP["Decomposition<br/>variable_weight=True"]
+        DECOMP --> LS["LS = DV^-0.5 * H<br/>(N x E)"]
+        DECOMP --> RS["RS = DE^-1 * H^T * DV^-0.5<br/>(E x N)"]
+    end
+
+    DATA --> FEATURES --> HYPERGRAPH 
+    %% --> MODEL --> TRAINING
+
+classDef data fill:#4a90d9,stroke:#2c5f8a,color:#fff
+classDef feature fill:#e8943a,stroke:#b5722e,color:#fff
+classDef hypergraph fill:#5cb85c,stroke:#3d8b3d,color:#fff
+classDef conv fill:#7c6bc4,stroke:#5a4a9e,color:#fff
+classDef training fill:#d9534f,stroke:#b52b27,color:#fff
+
+class DB,Reviews,Businesses data
+class FM,LV feature
+class H,Q,DECOMP,LS,RS hypergraph
+class LIN1,CENT1,DIST1,QUPD1,AGG1,LIN2,CENT2,DIST2,QUPD2,AGG2,RELU conv
+class LOGITS,LOSS,OPT,METRICS,DBOUT training
