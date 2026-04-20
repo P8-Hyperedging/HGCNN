@@ -140,29 +140,20 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
             else:
                 model.eval()  # Set model to evaluate mode
 
-            running_loss = 0.0
-            running_corrects = 0
-
             idx = idx_train if phase == 'train' else idx_test
 
-            # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
                 outputs = model(fts, G)
                 loss = criterion(outputs[idx], lbls[idx])
                 _, preds = torch.max(outputs, 1)
 
-                # backward + optimize only if in training phase
                 if phase == 'train':
                     loss.backward()
                     optimizer.step()
 
-            # statistics
-            running_loss += loss.item() * fts.size(0)
-            running_corrects += torch.sum(preds[idx] == lbls.data[idx])
-
-            epoch_loss = running_loss / len(idx)
-            epoch_acc = running_corrects.double() / len(idx)
+            epoch_loss = loss.item()
+            epoch_acc = (preds[idx] == lbls[idx]).float().mean()
 
             if epoch % print_freq == 0:
                 msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
