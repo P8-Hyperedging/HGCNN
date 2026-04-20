@@ -10,7 +10,7 @@ if __name__ == "__main__":
     start = time.time()    
 
     trainer = Train_QHGNN_v2()
-    trainer.train(num_epochs=epochs)
+    total_epochs = trainer.train(num_epochs=epochs)
     
     #trainer = Train_MoonLabHGNN()
     #trainer.train()
@@ -18,5 +18,5 @@ if __name__ == "__main__":
     #trainer.train()
 
     elapsed = time.time() - start
-    print(f"\n=== Total time for {epochs} epochs: {elapsed:.2f}s ===")
+    print(f"\n=== Total time for {total_epochs} epochs: {elapsed:.2f}s ===")
 

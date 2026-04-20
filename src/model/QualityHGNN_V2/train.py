@@ -120,7 +120,7 @@ class Train_QHGNN_v2:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, valid_f1, train_runtime = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -131,6 +131,7 @@ class Train_QHGNN_v2:
             "Epochs": num_epochs,
             "Train Proportion": train_proportion,
             "Dropout": dropout,
+            "Total Epochs": total_epochs
         }
 
         parameters_json = json.dumps(parameters)
@@ -147,6 +148,8 @@ class Train_QHGNN_v2:
             seed=seed
         )
 
+        return total_epochs
+
 
 def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None):
     since = time.time()
@@ -155,6 +158,7 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
     patience = 100
     epochs_no_improve = 0
     stop_training = False
+    total_epochs = 0
 
 
     n_class = int(lbls.max()) + 1
@@ -170,6 +174,8 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
     best_f1 = 0.0
 
     for epoch in range(num_epochs):
+        total_epochs += 1
+
         if epoch % print_freq == 0:
             seperator = '-' * 10
             msg = f'Epoch {epoch}/{num_epochs - 1}'
@@ -285,4 +291,4 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    return model, best_acc, best_f1, time_elapsed
+    return model, best_acc, best_f1, time_elapsed, total_epochs
