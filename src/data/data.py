@@ -66,6 +66,7 @@ def load_postgres_business_list_data(business_ids) -> list[Business]:
                                            ON b.business_id = bc.business_id
                         WHERE b.business_id = ANY (%s)
                         GROUP BY b.business_id, b.name, b.stars, b.review_count, b.longitude, b.latitude
+                        ORDER BY b.business_id
                         """, (list(business_ids),))
 
             business_rows = cur.fetchall()
@@ -165,6 +166,7 @@ def load_postgres_review_data(db_table_name="user_business_reviews_sw_restaurant
                 SELECT t.review_id, t.user_id, t.business_id, review.stars
                 FROM {} AS t
                 INNER JOIN review ON t.review_id = review.review_id
+                ORDER BY t.review_id
                 """
             ).format(sql.Identifier(db_table_name))
 
