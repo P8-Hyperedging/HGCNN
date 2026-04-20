@@ -41,7 +41,7 @@ def get_business_id_mapping(reviews):
        for business_id, stars in businesses:
             business_ids_set.add(business_id)
 
-    business_ids = list(business_ids_set)
+    business_ids = sorted(business_ids_set)
 
     # assign each business a row index
     business_to_idx = {}
