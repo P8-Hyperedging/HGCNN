@@ -165,6 +165,7 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
 
     for epoch in range(num_epochs):
         if epoch % print_freq == 0:
+            progress = epoch / (num_epochs - 1)   # \in [0,1]
             seperator = '-' * 10
             msg = f'Epoch {epoch}/{num_epochs - 1}'
             if socket_logger:
@@ -190,7 +191,7 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
             # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
-                outputs = model(fts, LS, RS, Q)
+                outputs = model(fts, LS, RS, Q, progress)
                 loss = criterion(outputs[idx], lbls[idx])
                 _, preds = torch.max(outputs, 1)
 

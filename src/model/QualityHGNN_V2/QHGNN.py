@@ -13,8 +13,8 @@ class QHGNN_v2(nn.Module):
         # in_ch is the number of input features per node, n_hid is the number of hidden nodes
         self.hgc2 = QHGNN_conv_v2(n_hid, n_class)
 
-    def forward(self, x, LS, RS, Q):
-        x = F.relu(self.hgc1(x, LS, Q, RS))
+    def forward(self, x, LS, RS, Q, progress=None):
+        x = F.relu(self.hgc1(x, LS, Q, RS, progress))
         x = F.dropout(x, self.dropout)
-        x = self.hgc2(x, LS, Q, RS)
+        x = self.hgc2(x, LS, Q, RS, progress)
         return x

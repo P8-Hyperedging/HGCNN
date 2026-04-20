@@ -22,7 +22,7 @@ class QHGNN_conv_v2(nn.Module):
         if self.bias is not None:
             self.bias.data.uniform_(-stdv, stdv)
 
-    def forward(self, x: torch.Tensor, LS: torch.Tensor, Q: torch.Tensor, RS: torch.Tensor):
+    def forward(self, x: torch.Tensor, LS: torch.Tensor, Q: torch.Tensor, RS: torch.Tensor, progress=None):
         """Q is a 1D vector of diagonal values (not a full matrix)."""
         x = x.matmul(self.weight)
         if self.bias is not None:
@@ -55,7 +55,11 @@ class QHGNN_conv_v2(nn.Module):
             distance_scores = 1.0 / (1.0 + total_dists_normalized)           # (E,)
             Q_updated = torch.clamp(distance_scores * Q, min=0, max=10)
 
-            G = (LS * Q_updated.unsqueeze(0)).matmul(RS)
+            alpha = progress  # or progress**2 for smoother warm-up
+
+            Q_effective = 1 + alpha * (Q_updated - 1)
+
+            G = (LS * Q_effective.unsqueeze(0)).matmul(RS)
 
         x = G.matmul(x)
         return x
