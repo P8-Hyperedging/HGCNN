@@ -43,7 +43,7 @@ train_params_model = api.model('TrainParameters', {
     'milestones_input': fields.String(default='50,100', description='Comma-separated epoch milestones for LR decay'),
     'seed': fields.Integer(default="Delete or set integer", description='Optinally set a seed for reproducibility'),
     'patience' : fields.Integer(default=10, description='Early stopping patience (only for QHGNN_V2)'),
-    'Quality weight': fields.Float(default=1.0, description='Weight for quality loss (only for QHGNN_V2)'),
+    'quality weight': fields.Float(default=1.0, description='Weight for quality loss (only for QHGNN_V2)'),
 })
 
 model_option_model = api.model('ModelOption', {
