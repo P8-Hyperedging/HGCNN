@@ -6,7 +6,6 @@ from flask_socketio import SocketIO
 
 import modelResult
 from model.QualityHGNN_V2.train import Train_QHGNN_v2
-# from model.QualityHGNN.train import Train_QHGNN
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 from model.AllSetTransformer.train import Train_AllSetTransformer
 from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, serialize
