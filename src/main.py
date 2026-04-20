@@ -6,7 +6,7 @@ from model.QualityHGNN_V2.train import Train_QHGNN_v2
 
 
 if __name__ == "__main__":
-    epochs = 100
+    epochs = 1000
     start = time.time()    
 
     trainer = Train_QHGNN_v2()

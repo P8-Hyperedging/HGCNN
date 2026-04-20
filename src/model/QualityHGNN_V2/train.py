@@ -152,7 +152,7 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
     since = time.time()
 
     # Early stopping parameters
-    patience = 20
+    patience = 100
     epochs_no_improve = 0
     stop_training = False
 
