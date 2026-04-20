@@ -153,7 +153,6 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
 
     # Early stopping parameters
     patience = 20
-    best_f1 = 0.0
     epochs_no_improve = 0
     stop_training = False
 
@@ -223,9 +222,8 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
                 recall = recall_metric(preds[idx], lbls[idx])
                 confusion = confusion_metric(preds[idx], lbls[idx]).detach().cpu().tolist()
                 confusion_rows = "\n".join(str(row) for row in confusion) # Newline between rows to make it readable
-                # Early stopping check based on F1 score improvement
-                if f1 > best_f1 + 1e-4:
-                    best_f1 = f1
+                # Early stopping check based on validation accuracy improvement
+                if epoch_acc > best_acc + 1e-4:
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(model.state_dict())
                     epochs_no_improve = 0
@@ -254,9 +252,9 @@ def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, 
             if epochs_no_improve >= patience:
                 stop_training = True
                 if socket_logger:
-                    socket_logger(f'Early stopping at epoch {epoch} with best F1: {best_f1:.4f}', job_id=job_id, progress=epoch)
+                    socket_logger(f'Early stopping at epoch {epoch} with best val Acc: {best_acc:.4f}', job_id=job_id, progress=epoch)
                 else:
-                    print(f'Early stopping at epoch {epoch} with best F1: {best_f1:.4f}')
+                    print(f'Early stopping at epoch {epoch} with best val Acc: {best_acc:.4f}')
                 break
 
         if stop_training:
