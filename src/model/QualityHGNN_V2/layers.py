@@ -5,8 +5,10 @@ from torch.nn.parameter import Parameter
 
 
 class QHGNN_conv_v2(nn.Module):
-    def __init__(self, in_ft, out_ft, bias=True, quality=False):
+    def __init__(self, in_ft, out_ft, bias=True, quality_weight=1.0, quality=False):
         super(QHGNN_conv_v2, self).__init__()
+
+        self.quality_weight = quality_weight
 
         self.quality = quality
         self.weight = Parameter(torch.Tensor(in_ft, out_ft)) # Create new feature matrix for hidden layer
@@ -58,7 +60,8 @@ class QHGNN_conv_v2(nn.Module):
             # Normalize total_dists by its mean to keep distance_scores in reasonable range
             mean_total_dists = total_dists.mean()
             total_dists_normalized = total_dists / (mean_total_dists + 1e-8)  # Add small epsilon to avoid division by zero
-            distance_scores = 1.0 / (1.0 + total_dists_normalized)           # (E,)
+            distance_scores = 1.0 / (1.0 + total_dists_normalized)            # (E,)
+            distance_scores = distance_scores * self.quality_weight           # scale by quality_weight
             Q_updated = torch.clamp(distance_scores * Q, min=0, max=10)
 
             G = (LS * Q_updated.unsqueeze(0)).matmul(RS)

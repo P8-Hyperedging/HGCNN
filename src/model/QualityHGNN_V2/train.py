@@ -22,7 +22,7 @@ class Train_QHGNN_v2:
         self.reviews = load_postgres_review_data()
 
     def train(self, num_epochs=200,
-              lr=0.009,
+              lr=0.001,
               hidden_layer_size=256,
               train_proportion=0.8,
               dropout=0.5,
@@ -30,6 +30,7 @@ class Train_QHGNN_v2:
               gamma=0.5,
               milestones_input="50,100",
               model_name="QHGNN_v2",
+              quality_weight=1.0,
               job_id=None,
               seed = None,
               socket_logger=None
@@ -112,6 +113,7 @@ class Train_QHGNN_v2:
             in_ch=fts.shape[1],
             n_class=n_class,
             n_hid=hidden_layer_size,
+            quality_weight=quality_weight,
             dropout=dropout
         ).to(device)
 
@@ -128,6 +130,7 @@ class Train_QHGNN_v2:
             "Hidden Layer Size": hidden_layer_size,
             "Learning Rate": lr,
             "Weight Decay": weight_decay,
+            "Quality Weight": quality_weight,
             "Epochs": num_epochs,
             "Train Proportion": train_proportion,
             "Dropout": dropout,

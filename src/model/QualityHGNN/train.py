@@ -25,7 +25,7 @@ class Train_QHGNN:
         self.reviews = load_postgres_review_data()
 
     def train(self, num_epochs=200,
-              lr=0.009,
+              lr=0.001,
               hidden_layer_size=256,
               train_proportion=0.8,
               dropout=0.5,
