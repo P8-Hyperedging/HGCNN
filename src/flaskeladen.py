@@ -5,7 +5,8 @@ from flask_restx import Api, Resource, fields
 from flask_socketio import SocketIO
 
 import modelResult
-from model.QualityHGNN.train import Train_QHGNN
+from model.QualityHGNN_V2.train import Train_QHGNN_v2
+# from model.QualityHGNN.train import Train_QHGNN
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 from model.AllSetTransformer.train import Train_AllSetTransformer
 from parameters import InputType, SelectParameter, get_allset_parameters, get_moonlab_parameters, get_qhgnn_parameters, serialize
@@ -41,6 +42,8 @@ train_params_model = api.model('TrainParameters', {
     'gamma': fields.Float(default=0.5, description='Learning rate decay factor'),
     'milestones_input': fields.String(default='50,100', description='Comma-separated epoch milestones for LR decay'),
     'seed': fields.Integer(default="Delete or set integer", description='Optinally set a seed for reproducibility'),
+    'patience' : fields.Integer(default=10, description='Early stopping patience (only for QHGNN_V2)'),
+    'Quality weight': fields.Float(default=1.0, description='Weight for quality loss (only for QHGNN_V2)'),
 })
 
 model_option_model = api.model('ModelOption', {
@@ -100,8 +103,8 @@ class Train(Resource):
         if model == "allset" and float(data.get("valid_proportion", 0.25)) + float(data.get("train_proportion", 0.5)) > 1.0:
             return {"error": "Train proportion and valid proportion must sum to 1 or less."}, 400
 
-        int_fields = ["num_epochs", "hidden_layer_size", "seed"]
-        float_fields = ["lr", "train_proportion", "valid_proportion", "dropout", "weight_decay", "gamma"]
+        int_fields = ["num_epochs", "hidden_layer_size", "seed", "patience"]
+        float_fields = ["lr", "train_proportion", "valid_proportion", "dropout", "weight_decay", "gamma", "Quality weight"]
 
         parsed_data = {}
         for k, v in data.items():
@@ -147,7 +150,7 @@ def train_model_async(model: str, data: dict, job_id: str):
     try:
         match model:
             case "qhgnn":
-                trainer = Train_QHGNN()
+                trainer = Train_QHGNN_v2()
                 res = trainer.train(
                     num_epochs=data.get("num_epochs", 1000),
                     lr=data.get("lr", 0.001),
@@ -159,7 +162,9 @@ def train_model_async(model: str, data: dict, job_id: str):
                     milestones_input=data.get("milestones_input", "50,100"),
                     seed=data.get("seed"),
                     job_id=job_id,
-                    socket_logger=socket_logger
+                    socket_logger=socket_logger,
+                    patience=data.get("patience", 10),
+                    quality_weight=data.get("Quality weight", 1.0)
                 )
             case "allset":
                 trainer = Train_AllSetTransformer()
