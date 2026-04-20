@@ -203,3 +203,22 @@ def group_reviews_by_user(reviews):
         user_to_businesses[r['user_id']].add((r['business_id'], r['stars']))
 
     return user_to_businesses
+
+
+def output_metrics_to_db(model_name, job_id, training_time, total_runtime, parameters, valid_acc, valid_f1=None, seed=None):
+    import json
+    params = json.loads(parameters) if isinstance(parameters, str) else parameters
+    sep = "=" * 50
+    print(f"\n{sep}")
+    print(f"  RESULTS: {model_name}")
+    print(sep)
+    print(f"  Seed:            {seed}")
+    print(f"  Val Accuracy:    {valid_acc:.2f}%")
+    if valid_f1 is not None:
+        print(f"  Val Macro F1:    {valid_f1:.4f}")
+    print(f"  Training time:   {training_time:.1f}s")
+    print(f"  Total time:      {total_runtime:.1f}s")
+    print(f"  Hyperparameters:")
+    for k, v in params.items():
+        print(f"    {k}: {v}")
+    print(sep)
