@@ -10,7 +10,7 @@ if __name__ == "__main__":
     start = time.time()    
 
     trainer = Train_QHGNN_v2()
-    trainer.train(num_epochs=epochs)
+    trainer.train(num_epochs=epochs, quality_weight=3.0)
     
     #trainer = Train_MoonLabHGNN()
     #trainer.train()
