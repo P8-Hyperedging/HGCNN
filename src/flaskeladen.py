@@ -12,8 +12,8 @@ from parameters import InputType, SelectParameter, get_allset_parameters, get_mo
 from datetime import datetime
 import traceback
 
-ALLOWED_ORIGINS = {"http://localhost:8000", "http://127.0.0.1:8000", "http://0.0.0.0:8000"}
-ALLOWED_HOSTS = {"localhost:5002", "127.0.0.1:5002"}
+ALLOWED_ORIGINS = {"http://localhost:8000", "http://127.0.0.1:8000", "http://0.0.0.0:8000", "172.25.11.235:8000"}
+ALLOWED_HOSTS = {"localhost:5002", "127.0.0.1:5002", "172.25.11.235:8000"}
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
