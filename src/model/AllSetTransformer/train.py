@@ -252,5 +252,10 @@ class Train_AllSetTransformer:
 
         parameters_json = json.dumps(parameters)
 
+        # Convert tensors to float for JSON serialization
+        train_acc_float = float(train_acc.item()) if torch.is_tensor(train_acc) else float(train_acc)
+        valid_acc_float = float(valid_acc.item()) if torch.is_tensor(valid_acc) else float(valid_acc)
+        test_acc_float = float(test_acc.item()) if torch.is_tensor(test_acc) else float(test_acc)
+        
         print('All done with AllSet!')
-        return modelResult.ModelResult(model_name, train_runtime, train_acc, valid_acc, test_acc, total_runtime, parameters_json, seed, job_id)
+        return modelResult.ModelResult(model_name, train_runtime, train_acc_float, valid_acc_float, test_acc_float, total_runtime, parameters_json, seed, job_id, num_epochs)

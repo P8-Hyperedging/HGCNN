@@ -13,3 +13,4 @@ class ModelResult:
     parameters_json: dict[str, Any]
     seed: int
     job_id: str
+    total_epochs: int

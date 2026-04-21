@@ -1,4 +1,4 @@
-from dataclasses import asdict
+from dataclasses import asdict, is_dataclass
 
 from flask import Flask, jsonify, request
 from flask_restx import Api, Resource, fields
@@ -199,7 +199,12 @@ def train_model_async(model: str, data: dict, job_id: str):
         print("Oops")
         print(f"Error: {str(e)}")
         traceback.print_exc()
-    return asdict(res)
+        return {"error": str(e), "job_id": job_id}
+    
+    if res is not None and is_dataclass(res):
+        return asdict(res)
+    else:
+        return {"error": "Training failed - no valid result returned", "job_id": job_id}
 
 @socketio.on("subscribe_job")
 def handle_subscribe(data):

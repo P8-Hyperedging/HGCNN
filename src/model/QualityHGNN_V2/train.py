@@ -9,6 +9,7 @@ import json
 import sys
 
 import torch
+import modelResult
 from model.QualityHGNN_V2.QHGNN import QHGNN_v2
 from torch import device, optim, split
 
@@ -35,7 +36,7 @@ class Train_QHGNN_v2:
               seed = None,
               socket_logger=None,
               patience=100
-              ):
+              )-> modelResult.ModelResult:
         total_runtime_start = time.time()
 
         if seed == None:
@@ -154,7 +155,10 @@ class Train_QHGNN_v2:
             seed=seed
         )
 
-        return total_epochs
+        # Convert tensors to Python floats for JSON serialization
+        valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
+        
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, total_epochs)
 
 
     def train_model_QHGNN_v2(self, model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None, patience=None):
