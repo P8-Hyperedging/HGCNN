@@ -129,7 +129,9 @@ class Train_QHGNN:
 
         parameters_json = json.dumps(parameters)
 
-        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc, 0, total_runtime, parameters_json, seed, job_id)
+        # Convert tensor to float for JSON serialization
+        valid_acc_float = float(valid_acc.item()) if torch.is_tensor(valid_acc) else float(valid_acc)
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, num_epochs)
 
 
 def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
