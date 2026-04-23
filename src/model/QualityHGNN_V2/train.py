@@ -55,7 +55,7 @@ class Train_QHGNN_v2:
               job_id=None,
               seed=None,
               socket_logger=None,
-              patience=250,
+              patience=350,
               feature_config=None,
               )-> modelResult.ModelResult:
         total_runtime_start = time.time()

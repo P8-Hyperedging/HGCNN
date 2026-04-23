@@ -42,14 +42,22 @@ def print_results_table(results: list[tuple[str, float, float]]):
     best = results_sorted[0]
     print(f"\n  Best: {best[0]}  ->  {best[1]:.2f}% acc")
 
+TOP5_CONFIGS = [
+    FeatureConfig(use_review_count=True,  use_location=True,  use_opening_hours=False, use_categories=False, use_is_open=False, use_state_onehot=False, use_city_freq=False),  # rc+loc
+    FeatureConfig(use_review_count=True,  use_location=True,  use_opening_hours=False, use_categories=False, use_is_open=True,  use_state_onehot=True,  use_city_freq=True),   # rc+loc+io+st+cf
+    FeatureConfig(use_review_count=True,  use_location=True,  use_opening_hours=False, use_categories=True,  use_is_open=True,  use_state_onehot=False, use_city_freq=False),  # rc+loc+cat+io
+    FeatureConfig(use_review_count=True,  use_location=True,  use_opening_hours=False, use_categories=True,  use_is_open=True,  use_state_onehot=True,  use_city_freq=False),  # rc+loc+cat+io+st
+    FeatureConfig(use_review_count=True,  use_location=True,  use_opening_hours=False, use_categories=False, use_is_open=False, use_state_onehot=False, use_city_freq=True),   # rc+loc+cf
+]
+
 if __name__ == "__main__":
-    epochs = 500
-    seed = 42  # fixed seed so all configs are comparable
+    epochs = 1000
+    seed = 42
 
     trainer = Train_QHGNN_v2()  # load reviews once
 
-    configs = all_configs()
-    print(f"Running {len(configs)} ablation configurations...\n")
+    configs = TOP5_CONFIGS
+    print(f"Running top-5 configs at {epochs} epochs...\n")
 
     results = []
     for i, config in enumerate(configs):
