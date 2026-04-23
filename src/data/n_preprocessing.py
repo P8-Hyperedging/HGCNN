@@ -4,6 +4,7 @@ from data.data import group_reviews_by_user, Business
 from data.data import OpeningHours
 import torch
 from utils.qualityutils import *
+#from word2vecy import train_word2vec, business_to_vec
 
 MAX_POSSIBLE_VARIANCE = 4.0 # ((1-3)^2+(5-3)^2)/2
 
@@ -105,15 +106,16 @@ def create_business_feature_matrix(businesses: list[Business], opening_hours):
     fm = np.zeros((nodes, total_features))
     print(f"Number of businesses: {len(businesses)}")
     print(f"Number of opening_hours: {len(opening_hours)}")
-    
+
     for i in range(nodes):
+        #vec = business_to_vec(businesses[i].name)
         b = businesses[i]
         oh = opening_hours[i]
         fm[i, 0] = b.review_count
         fm[i, 1] = b.longitude
         fm[i, 2] = b.latitude 
         fm[i, 3:17] = get_opening_hours_vector(oh)
-        fm[i, 17:17+len(b.categories)] = b.categories
+        #fm[i, 17:17+len(vec)] = vec
     return fm
 
 # All nodes need to have SOME label for the KNN pre-processing from the paper
