@@ -190,10 +190,64 @@ def rand_train_test_idx_simple(n_nodes, train_prop=0.75) -> tuple[torch.Tensor, 
     n = n_nodes
     train_num = int(n * train_prop)
     valid_num = int(n * (1-train_prop))
-    
+
     perm = torch.as_tensor(np.random.permutation(n))
-    
+
     train_idx = perm[:train_num]
     valid_idx = perm[train_num:train_num + valid_num]
-    
+
     return train_idx, valid_idx
+
+
+def rand_train_test_idx_stratified(labels: np.ndarray, train_prop: float = 0.75) -> tuple[torch.Tensor, torch.Tensor]:
+    """Stratified split ensuring every class appears in both train and val partitions."""
+    labels = np.asarray(labels, dtype=np.int64)
+    train_indices, val_indices = [], []
+
+    for c in np.unique(labels):
+        idx = np.where(labels == c)[0]
+        np.random.shuffle(idx)
+        n_val = max(1, len(idx) - max(1, int(np.floor(len(idx) * train_prop))))
+        if len(idx) == 1:
+            train_indices.append(idx)
+        else:
+            train_indices.append(idx[:-n_val])
+            val_indices.append(idx[-n_val:])
+
+    train_idx = np.random.permutation(np.concatenate(train_indices))
+    val_idx   = np.random.permutation(np.concatenate(val_indices)) if val_indices else np.array([], dtype=np.int64)
+    return torch.as_tensor(train_idx).long(), torch.as_tensor(val_idx).long()
+
+
+def get_continuous_col_indices(config: FeatureConfig, n_state_categories: int, n_category_features: int) -> list[int]:
+    """Returns column indices of continuous (non-binary) features for the given FeatureConfig."""
+    cols, cursor = [], 0
+    if config.use_review_count:
+        cols.append(cursor); cursor += 1
+    if config.use_location:
+        cols += [cursor, cursor + 1]; cursor += 2
+    if config.use_opening_hours:
+        cols += list(range(cursor, cursor + 14)); cursor += 14
+    if config.use_categories:
+        cursor += n_category_features           # binary multi-hot, skip
+    if config.use_is_open:
+        cursor += 1                             # binary, skip
+    if config.use_state_onehot:
+        cursor += n_state_categories            # one-hot, skip
+    if config.use_city_freq:
+        cols.append(cursor)                     # fractional density, normalize
+    return cols
+
+
+def normalize_continuous_features(fm: np.ndarray, continuous_cols: list[int], train_idx) -> np.ndarray:
+    """Z-score normalize continuous columns in-place, fitting mean/std on training rows only."""
+    if hasattr(train_idx, 'numpy'):
+        train_idx = train_idx.numpy()
+    train_rows = fm[train_idx]
+    for col in continuous_cols:
+        mu    = train_rows[:, col].mean()
+        sigma = train_rows[:, col].std()
+        if sigma < 1e-8:
+            continue
+        fm[:, col] = (fm[:, col] - mu) / sigma
+    return fm

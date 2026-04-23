@@ -107,8 +107,9 @@ def _generate_G_from_H(H, variable_weight=False):
     DV = np.asarray(H.dot(W)).flatten()
     DE = np.asarray(H.sum(axis=0)).flatten()
 
-    invDE  = diags(np.power(DE, -1))
-    DV2    = diags(np.power(DV, -0.5))
+    EPS    = 1e-8
+    invDE  = diags(np.power(np.maximum(DE, EPS), -1))
+    DV2    = diags(np.power(np.maximum(DV, EPS), -0.5))
     W_diag = diags(W)
 
     HT = H.T

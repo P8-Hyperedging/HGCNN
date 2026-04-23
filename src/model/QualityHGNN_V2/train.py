@@ -81,13 +81,14 @@ class Train_QHGNN_v2:
         #     print(f"  Class {label}: {count} ({count/len(self.lv)*100:.1f}%)")
 
         n = len(self.businesses)
-        train_split, valid_split = rand_train_test_idx_simple(n, train_prop=train_proportion)
-        # print(f"Total nodes: {n}, Train: {len(train_split)}, Val: {len(valid_split)}")
+        train_split, valid_split = rand_train_test_idx_stratified(self.lv, train_prop=train_proportion)
+
+        cfg_obj   = feature_config or FeatureConfig()
+        cont_cols = get_continuous_col_indices(cfg_obj, len(self.encoders["states"]), len(self.businesses[0].categories))
+        fm        = normalize_continuous_features(fm, cont_cols, train_split)
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
         if not torch.cuda.is_available():
-        #     print(f"Using GPU: {torch.cuda.get_device_name(0)}")
-        # else:
             print("Using CPU")
 
         fts  = torch.Tensor(fm).to(device)
@@ -100,6 +101,13 @@ class Train_QHGNN_v2:
 
         n_class = int(lbls.max()) + 1
 
+        train_labels_cpu = lbls[idx_train].cpu().numpy()
+        class_counts     = np.bincount(train_labels_cpu, minlength=n_class).astype(np.float64)
+        class_counts     = np.where(class_counts == 0, 1.0, class_counts)
+        class_weights_np = 1.0 / class_counts
+        class_weights_np = class_weights_np / class_weights_np.sum() * n_class
+        class_weights    = torch.tensor(class_weights_np, dtype=torch.float32).to(device)
+
         model_ft = QHGNN_v2(
             in_ch=fts.shape[1],
             n_class=n_class,
@@ -111,7 +119,7 @@ class Train_QHGNN_v2:
         optimizer = optim.Adam(model_ft.parameters(), lr, weight_decay=weight_decay)
         milestones = [int(x * num_epochs) for x in [0.4, 0.7]]
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
-        criterion = torch.nn.CrossEntropyLoss()
+        criterion = torch.nn.CrossEntropyLoss(weight=class_weights)
 
         model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(
             model_ft, criterion, optimizer, scheduler, num_epochs,
