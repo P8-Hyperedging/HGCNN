@@ -6,16 +6,20 @@ from data.data import load_postgres_business_list_data, load_postgres_business_l
 from data.n_preprocessing import build_hypergraph_incidence_matrix
 
 
+DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 _WORD2VEC_CACHE = {
     "embeddings": None,
     "word_to_ix": None
 }
 
+
 def get_word2vec():
     global _WORD2VEC_CACHE
     if _WORD2VEC_CACHE["embeddings"] is None:
         embeddings, word_to_ix = load_word2vec()
-        _WORD2VEC_CACHE["embeddings"] = embeddings
+        _WORD2VEC_CACHE["embeddings"] = embeddings.to(DEVICE)
         _WORD2VEC_CACHE["word_to_ix"] = word_to_ix
     return _WORD2VEC_CACHE["embeddings"], _WORD2VEC_CACHE["word_to_ix"]
 
@@ -59,15 +63,17 @@ def train_word2vec(corpus, embedding_dim=10, epochs=2000):
     vocab, word_to_ix, ix_to_word = build_vocabulary(tokens)
     data = generate_training_data(tokens)
 
-    model = Word2Vec(len(vocab), embedding_dim)
+    model = Word2Vec(len(vocab), embedding_dim).to(DEVICE)
+
     loss_function = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.01)
 
     for epoch in range(epochs):
         total_loss = 0
+
         for target, context in data:
-            target_ix = torch.tensor([word_to_ix[target]])
-            context_ix = torch.tensor([word_to_ix[context]])
+            target_ix = torch.tensor([word_to_ix[target]], device=DEVICE)
+            context_ix = torch.tensor([word_to_ix[context]], device=DEVICE)
 
             optimizer.zero_grad()
             output = model(target_ix)
@@ -80,7 +86,7 @@ def train_word2vec(corpus, embedding_dim=10, epochs=2000):
         if epoch % 50 == 0:
             print(f"Epoch {epoch}, Loss: {total_loss:.4f}")
 
-    embeddings = model.embeddings.weight.data
+    embeddings = model.embeddings.weight.detach().cpu()
     return embeddings, word_to_ix
 
 
@@ -95,12 +101,16 @@ def load_word2vec(path="word2vec.pt"):
 
 def business_to_vec(name):
     embeddings, word_to_ix = get_word2vec()
+
     tokens = name.lower().split()
 
-    vecs = [embeddings[word_to_ix[w]] for w in tokens if w in word_to_ix]
+    vecs = [
+        embeddings[word_to_ix[w]]
+        for w in tokens if w in word_to_ix
+    ]
 
     if len(vecs) == 0:
-        return torch.zeros(embeddings.shape[1])
+        return torch.zeros(embeddings.shape[1], device=DEVICE)
 
     return torch.mean(torch.stack(vecs), dim=0)
 
@@ -110,6 +120,7 @@ if __name__ == "__main__":
     print(f"H shape: {H.shape}")
 
     businesses = load_postgres_business_list_data(business_ids)
+
     embeddings, word_to_ix = train_word2vec([b.name for b in businesses])
 
     save_word2vec(embeddings, word_to_ix)
