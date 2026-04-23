@@ -103,7 +103,7 @@ class Train_QHGNN_v2:
         print("Unsparsing :(")
         LS = torch.Tensor(LS.toarray()).to(device)
         # Make Q all ones for testing
-        Q = torch.eye(Q.shape[0], device=device)
+        Q = torch.ones(LS.shape[1], device=device)
         RS = torch.Tensor(RS.toarray()).to(device)
         idx_train = train_split.long().to(device)
         idx_test = valid_split.long().to(device)
