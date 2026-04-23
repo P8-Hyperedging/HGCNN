@@ -29,7 +29,6 @@ class Train_QHGNN_v2:
         print("Loading businesses and hours...")
         self.hours = load_postgres_business_list_opening_hours(self.business_ids)
         self.businesses = load_postgres_business_list_data(self.business_ids)
-        self.lv = create_label_vector(self.businesses)
         self.encoders = fit_categorical_encoders(self.businesses)
 
         print("Computing quality matrix...")
@@ -57,6 +56,7 @@ class Train_QHGNN_v2:
               socket_logger=None,
               patience=350,
               feature_config=None,
+              n_classes=5,
               )-> modelResult.ModelResult:
         total_runtime_start = time.time()
 
@@ -73,15 +73,16 @@ class Train_QHGNN_v2:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
+        lv = create_label_vector(self.businesses, n_classes=n_classes)
         fm = create_business_feature_matrix(self.businesses, self.hours, config=feature_config, encoders=self.encoders)
 
-        # unique, counts = np.unique(self.lv, return_counts=True)
+        # unique, counts = np.unique(lv, return_counts=True)
         # print("Label distribution:")
         # for label, count in zip(unique, counts):
-        #     print(f"  Class {label}: {count} ({count/len(self.lv)*100:.1f}%)")
+        #     print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
 
         n = len(self.businesses)
-        train_split, valid_split = rand_train_test_idx_stratified(self.lv, train_prop=train_proportion)
+        train_split, valid_split = rand_train_test_idx_stratified(lv, train_prop=train_proportion)
 
         cfg_obj   = feature_config or FeatureConfig()
         cont_cols = get_continuous_col_indices(cfg_obj, len(self.encoders["states"]), len(self.businesses[0].categories))
@@ -92,7 +93,7 @@ class Train_QHGNN_v2:
             print("Using CPU")
 
         fts  = torch.Tensor(fm).to(device)
-        lbls = torch.Tensor(self.lv).long().to(device)
+        lbls = torch.Tensor(lv).long().to(device)
         LS   = torch.Tensor(self.LS_np).to(device)
         RS   = torch.Tensor(self.RS_np).to(device)
         Q    = torch.Tensor(self.Q_np).to(device)

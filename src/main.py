@@ -70,6 +70,7 @@ if __name__ == "__main__":
             model_name=f"QHGNN_v2[{label}]",
             feature_config=config,
             seed=seed,
+            n_classes=5,
         )
         elapsed = time.time() - run_start
 

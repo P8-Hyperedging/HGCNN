@@ -177,12 +177,17 @@ def create_business_feature_matrix(businesses: list[Business], opening_hours,
 
 # All nodes need to have SOME label for the KNN pre-processing from the paper
 # In practice, we can make some of them -1 and just not use them for training/testing.
-def create_label_vector(businesses):
+def create_label_vector(businesses, n_classes=5):
+    """
+    n_classes=9 : original 0.5-step encoding (1.0→0 ... 5.0→8)
+    n_classes=5 : round to nearest full star   (1★→0 ... 5★→4)
+    """
     labels = np.zeros(len(businesses))
-    for i in range(len(businesses)):
-        b = businesses[i]
-        labels[i] = round(b.stars * 2) - 2 # -2 to make class numbers 0-8 instead of 2-10
-        
+    for i, b in enumerate(businesses):
+        if n_classes == 5:
+            labels[i] = round(b.stars) - 1      # 1-5 → 0-4
+        else:
+            labels[i] = round(b.stars * 2) - 2  # 1.0-5.0 → 0-8
     return labels
 
 def rand_train_test_idx_simple(n_nodes, train_prop=0.75) -> tuple[torch.Tensor, torch.Tensor]:
