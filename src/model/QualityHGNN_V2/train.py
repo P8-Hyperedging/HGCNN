@@ -45,7 +45,7 @@ class Train_QHGNN_v2:
     def train(self, num_epochs=200,
               lr=0.001,
               hidden_layer_size=256,
-              train_proportion=0.2,
+              train_proportion=0.75,
               dropout=0.5,
               weight_decay=5e-4,
               gamma=0.5,
@@ -109,7 +109,7 @@ class Train_QHGNN_v2:
         ).to(device)
 
         optimizer = optim.Adam(model_ft.parameters(), lr, weight_decay=weight_decay)
-        milestones = [int(x) for x in milestones_input.split(',')]
+        milestones = [int(x * num_epochs) for x in [0.4, 0.7]]
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
