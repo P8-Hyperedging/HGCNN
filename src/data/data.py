@@ -5,7 +5,9 @@ from utils.config import config
 
 
 class Business:
-    def __init__(self, business_id: int, categories: list[int], name: str, stars: float, review_count: int, longitude: float, latitude: float):
+    def __init__(self, business_id: int, categories: list[int], name: str, stars: float, review_count: int,
+                 longitude: float, latitude: float, address: str = None, city: str = None,
+                 state: str = None, postal_code: str = None, is_open: int = None):
         self.business_id = business_id
         self.categories = categories
         self.name = name
@@ -13,6 +15,11 @@ class Business:
         self.review_count = review_count
         self.longitude = longitude
         self.latitude = latitude
+        self.address = address
+        self.city = city
+        self.state = state
+        self.postal_code = postal_code
+        self.is_open = is_open
 
     def __repr__(self):
         return f"Business({self.name}, {self.stars}, {self.review_count} reviews, Location=({self.latitude}, {self.longitude}))"
@@ -48,6 +55,18 @@ class OpeningHours:
 params = config()
 
 
+# name	text NULL	
+# address	text NULL	
+# city	text NULL	
+# state	text NULL	
+# postal_code	text NULL	
+# latitude	double precision NULL	
+# longitude	double precision NULL	
+# stars	double precision NULL	
+# review_count	integer NULL	
+# is_open
+
+
 def load_postgres_business_list_data(business_ids) -> list[Business]:
     businesses = []
     conn = psycopg2.connect(**params)
@@ -60,12 +79,17 @@ def load_postgres_business_list_data(business_ids) -> list[Business]:
                                b.stars,
                                b.review_count,
                                b.longitude,
-                               b.latitude
+                               b.latitude,
+                               b.address,
+                               b.city,
+                               b.state,
+                               b.postal_code,
+                               b.is_open                        
                         FROM business b
                                  LEFT JOIN business_categories bc
                                            ON b.business_id = bc.business_id
                         WHERE b.business_id = ANY (%s)
-                        GROUP BY b.business_id, b.name, b.stars, b.review_count, b.longitude, b.latitude
+                        GROUP BY b.business_id, b.name, b.stars, b.review_count, b.longitude, b.latitude, b.address, b.city, b.state, b.postal_code, b.is_open
                         ORDER BY b.business_id
                         """, (list(business_ids),))
 
@@ -91,7 +115,13 @@ def load_postgres_business_list_data(business_ids) -> list[Business]:
                     stars=row[3],
                     review_count=row[4],
                     longitude=row[5],
-                    latitude=row[6]
+                    latitude=row[6],
+                    address=row[7],
+                    city=row[8],
+                    state=row[9],
+                    postal_code=row[10],
+                    is_open=row[11]
+
                 ))
     finally:
         conn.close()

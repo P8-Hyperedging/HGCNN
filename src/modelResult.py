@@ -14,3 +14,4 @@ class ModelResult:
     seed: int
     job_id: str
     total_epochs: int
+    valid_f1: float = 0.0

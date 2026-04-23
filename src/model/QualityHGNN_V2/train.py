@@ -33,9 +33,10 @@ class Train_QHGNN_v2:
               model_name="QHGNN_v2",
               quality_weight=1.0,
               job_id=None,
-              seed = None,
+              seed=None,
               socket_logger=None,
-              patience=100
+              patience=250,
+              feature_config=None,
               )-> modelResult.ModelResult:
         total_runtime_start = time.time()
 
@@ -58,8 +59,8 @@ class Train_QHGNN_v2:
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)
 
-        fm = create_business_feature_matrix(businesses, hours)
-        print(f"Feature matrix shape: {fm.shape}")
+        encoders = fit_categorical_encoders(businesses)
+        fm = create_business_feature_matrix(businesses, hours, config=feature_config, encoders=encoders)
 
         lv = create_label_vector(businesses)
 
@@ -129,6 +130,7 @@ class Train_QHGNN_v2:
 
         total_runtime = time.time() - total_runtime_start
 
+        cfg = feature_config or FeatureConfig()
         parameters = {
             "Hidden Layer Size": hidden_layer_size,
             "Learning Rate": lr,
@@ -139,6 +141,9 @@ class Train_QHGNN_v2:
             "Dropout": dropout,
             "Total Epochs": total_epochs,
             "Patience": patience,
+            "Feature: is_open": cfg.use_is_open,
+            "Feature: state_onehot": cfg.use_state_onehot,
+            "Feature: city_freq": cfg.use_city_freq,
         }
 
         parameters_json = json.dumps(parameters)
@@ -155,10 +160,10 @@ class Train_QHGNN_v2:
             seed=seed
         )
 
-        # Convert tensors to Python floats for JSON serialization
         valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
-        
-        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, total_epochs)
+        valid_f1_float = float(valid_f1.item()) if torch.is_tensor(valid_f1) else float(valid_f1)
+
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, total_epochs, valid_f1=valid_f1_float)
 
 
     def train_model_QHGNN_v2(self, model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None, patience=None):
