@@ -163,7 +163,7 @@ def train_model_async(model: str, data: dict, job_id: str):
                     job_id=job_id,
                     socket_logger=socket_logger,
                     patience=data.get("patience", 10),
-                    quality_weight=data.get("Quality weight", 1.0)
+                    quality_weight=data.get("quality_weight", 1.0)
                 )
             case "allset":
                 trainer = Train_AllSetTransformer()
