@@ -58,7 +58,7 @@ class Word2Vec(nn.Module):
         return x
 
 
-def train_word2vec(corpus, embedding_dim=10, epochs=2000):
+def train_word2vec(corpus, embedding_dim=10, epochs=500):
     tokens = generate_tokens(corpus)
     vocab, word_to_ix, ix_to_word = build_vocabulary(tokens)
     data = generate_training_data(tokens)
