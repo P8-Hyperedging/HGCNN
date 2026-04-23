@@ -25,13 +25,13 @@ class Train_QHGNN_v2:
     def train(self, num_epochs=200,
               lr=0.001,
               hidden_layer_size=256,
-              train_proportion=0.8,
+              train_proportion=0.2,
               dropout=0.5,
               weight_decay=5e-4,
               gamma=0.5,
               milestones_input="50,100",
               model_name="QHGNN_v2",
-              quality_weight=1.0,
+              quality_weight=0.25,
               job_id=None,
               seed=None,
               socket_logger=None,
@@ -256,9 +256,9 @@ class Train_QHGNN_v2:
                         socket_logger(msg, job_id=job_id, progress=epoch)
                     else:
                         print(msg)
-                        if phase == 'val':
-                            print('Confusion Matrix:')
-                            print(confusion_rows)
+                        # if phase == 'val':
+                        #     print('Confusion Matrix:')
+                        #     print(confusion_rows)
 
                 # Early stopping check after validation phase
                 if epochs_no_improve >= patience:
