@@ -28,28 +28,22 @@ def fit_categorical_encoders(businesses: list[Business]) -> dict:
 MAX_POSSIBLE_VARIANCE = 4.0 # ((1-3)^2+(5-3)^2)/2
 
 def build_hypergraph_incidence_matrix(reviews):
-    """ Builds a hypergraph incidence matrix H. Rows/nodes are businesses, columns/hyperedges are users. 
-    H[i, j] = 1 if business i was reviewed by user j. """
+    """ Builds a hypergraph incidence matrix H. Rows/nodes are businesses, columns/hyperedges are users.
+    H[i, j] = 1 if business i was reviewed by user j. Returns a CSR sparse matrix. """
+    from scipy.sparse import lil_matrix, csr_matrix
 
     business_ids, business_to_idx, user_to_businesses = get_business_id_mapping(reviews)
 
-    # matrix size
     num_nodes = len(business_ids)
     num_hyperedges = len(user_to_businesses)
 
-    # initialize incidence matrix
-    H = np.zeros((num_nodes, num_hyperedges), dtype=float)
+    H = lil_matrix((num_nodes, num_hyperedges), dtype=float)
 
-    # fill incidence matrix
-    user_column = 0
-    for user_id in user_to_businesses:
-        reviewed_businesses = user_to_businesses[user_id]
-        for business_id, stars in reviewed_businesses:
-            business_row = business_to_idx[business_id]
-            H[business_row, user_column] = 1
-        user_column += 1
+    for user_column, user_id in enumerate(user_to_businesses):
+        for business_id, _ in user_to_businesses[user_id]:
+            H[business_to_idx[business_id], user_column] = 1
 
-    return H, business_ids, business_to_idx
+    return csr_matrix(H), business_ids, business_to_idx
 
 def get_business_id_mapping(reviews):
     # group businesses by user
@@ -106,8 +100,8 @@ def create_quality_matrix_from_H(reviews):
     W = np.zeros(num_hyperedges, dtype=float) # array which represents diagonal matrix.
 
     for user_column, user_id in enumerate(user_to_businesses):
-        if user_column % 1000 == 0:
-            print(f"Calculating quality scores for each hyperedge... ({user_column+1}/{num_hyperedges})")
+        # if user_column % 1000 == 0:
+            # print(f"Calculating quality scores for each hyperedge... ({user_column+1}/{num_hyperedges})")
         
         user_reviews = user_reviews_map[user_id]
         mean = calculate_mean_stars(user_reviews)

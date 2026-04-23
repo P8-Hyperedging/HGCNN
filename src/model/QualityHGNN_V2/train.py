@@ -22,6 +22,26 @@ class Train_QHGNN_v2:
     def __init__(self):
         self.reviews = load_postgres_review_data()
 
+        print("Building hypergraph...")
+        H, self.business_ids, self.business_to_idx = build_hypergraph_incidence_matrix(self.reviews)
+        print(f"H shape: {H.shape}, nnz: {H.nnz}")
+
+        print("Loading businesses and hours...")
+        self.hours = load_postgres_business_list_opening_hours(self.business_ids)
+        self.businesses = load_postgres_business_list_data(self.business_ids)
+        self.lv = create_label_vector(self.businesses)
+        self.encoders = fit_categorical_encoders(self.businesses)
+
+        print("Computing quality matrix...")
+        self.Q_np = create_quality_matrix_from_H(self.reviews)
+
+        print("Computing graph convolution terms (LS, RS)...")
+        DV2_H, _, invDE_HT_DV2 = generate_G_from_H(H, True)
+        self.LS_np = DV2_H.toarray()
+        self.RS_np = invDE_HT_DV2.toarray()
+        del H, DV2_H, invDE_HT_DV2
+        print("Preprocessing complete.")
+
     def train(self, num_epochs=200,
               lr=0.001,
               hidden_layer_size=256,
@@ -40,7 +60,7 @@ class Train_QHGNN_v2:
               )-> modelResult.ModelResult:
         total_runtime_start = time.time()
 
-        if seed == None:
+        if seed is None:
             rng = np.random.default_rng()
             seed = int(rng.integers(low=0, high=np.iinfo(np.uint32).max, size=1)[0])
 
@@ -53,63 +73,30 @@ class Train_QHGNN_v2:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
-        H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(self.reviews)
-        print(f"H shape: {H.shape}")
+        fm = create_business_feature_matrix(self.businesses, self.hours, config=feature_config, encoders=self.encoders)
 
-        hours = load_postgres_business_list_opening_hours(business_ids)
-        businesses = load_postgres_business_list_data(business_ids)
+        # unique, counts = np.unique(self.lv, return_counts=True)
+        # print("Label distribution:")
+        # for label, count in zip(unique, counts):
+        #     print(f"  Class {label}: {count} ({count/len(self.lv)*100:.1f}%)")
 
-        encoders = fit_categorical_encoders(businesses)
-        fm = create_business_feature_matrix(businesses, hours, config=feature_config, encoders=encoders)
-
-        lv = create_label_vector(businesses)
-
-        # Print label distribution
-        unique, counts = np.unique(lv, return_counts=True)
-        print("Label distribution:")
-        for label, count in zip(unique, counts):
-            print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
-
-        n = len(businesses)
+        n = len(self.businesses)
         train_split, valid_split = rand_train_test_idx_simple(n, train_prop=train_proportion)
-
-        print(f"Total nodes: {n}, Training nodes: {len(train_split)}, Validation nodes: {len(valid_split)}")
-        print(f"Sample train node IDs (first 10): {train_split[:10]}")
-        print(f"Sample val node IDs (first 10): {valid_split[:10]}")
-
-
-        Q = create_quality_matrix_from_H(self.reviews)
-        print(f"Q shape: {Q.shape}")
-
-        (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
-        # Generating G terms
-
-        LS = DV2_H
-        RS = invDE_HT_DV2
-
+        # print(f"Total nodes: {n}, Train: {len(train_split)}, Val: {len(valid_split)}")
 
         device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-        if (torch.cuda.is_available()):
-            print(f"Using GPU: {torch.cuda.get_device_name(0)}")
-        else:
+        if not torch.cuda.is_available():
+        #     print(f"Using GPU: {torch.cuda.get_device_name(0)}")
+        # else:
             print("Using CPU")
 
-
-        fts = torch.Tensor(fm).to(device)
-        lbls = torch.Tensor(lv).long().to(device)
-
-        print("Unsparsing :(")
-        LS = torch.Tensor(LS.toarray()).to(device)
-        Q = torch.Tensor(Q).to(device)
-        RS = torch.Tensor(RS.toarray()).to(device)
+        fts  = torch.Tensor(fm).to(device)
+        lbls = torch.Tensor(self.lv).long().to(device)
+        LS   = torch.Tensor(self.LS_np).to(device)
+        RS   = torch.Tensor(self.RS_np).to(device)
+        Q    = torch.Tensor(self.Q_np).to(device)
         idx_train = train_split.long().to(device)
-        idx_test = valid_split.long().to(device)
-
-        print(f"LS shape: {LS.shape}")
-        print(f"Q shape: {Q.shape}")
-        print(f"LS.shape[1]: {LS.shape[1]}")
-        print(f"Q length: {Q.shape[0]}")
+        idx_test  = valid_split.long().to(device)
 
         n_class = int(lbls.max()) + 1
 
@@ -126,7 +113,17 @@ class Train_QHGNN_v2:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger, patience=patience)
+        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(
+            model_ft, criterion, optimizer, scheduler, num_epochs,
+            print_freq=10, idx_train=idx_train, idx_test=idx_test,
+            fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q,
+            job_id=job_id, socket_logger=socket_logger, patience=patience
+        )
+
+        # Free GPU tensors before next run
+        del fts, lbls, LS, RS, Q, model_ft, idx_train, idx_test
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
         total_runtime = time.time() - total_runtime_start
 
@@ -141,13 +138,16 @@ class Train_QHGNN_v2:
             "Dropout": dropout,
             "Total Epochs": total_epochs,
             "Patience": patience,
-            "Feature: is_open": cfg.use_is_open,
-            "Feature: state_onehot": cfg.use_state_onehot,
-            "Feature: city_freq": cfg.use_city_freq,
+            "Feature: review_count":  cfg.use_review_count,
+            "Feature: location":      cfg.use_location,
+            "Feature: opening_hours": cfg.use_opening_hours,
+            "Feature: categories":    cfg.use_categories,
+            "Feature: is_open":       cfg.use_is_open,
+            "Feature: state_onehot":  cfg.use_state_onehot,
+            "Feature: city_freq":     cfg.use_city_freq,
         }
 
         parameters_json = json.dumps(parameters)
-
 
         log_model_metrics(
             model_name=model_name,
@@ -161,7 +161,7 @@ class Train_QHGNN_v2:
         )
 
         valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
-        valid_f1_float = float(valid_f1.item()) if torch.is_tensor(valid_f1) else float(valid_f1)
+        valid_f1_float  = float(valid_f1.item()) if torch.is_tensor(valid_f1) else float(valid_f1)
 
         return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, total_epochs, valid_f1=valid_f1_float)
 
