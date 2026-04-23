@@ -2,10 +2,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 
-from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data
-from data.n_preprocessing import build_hypergraph_incidence_matrix
-
-
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -113,16 +109,3 @@ def business_to_vec(name):
         return torch.zeros(embeddings.shape[1], device=DEVICE)
 
     return torch.mean(torch.stack(vecs), dim=0)
-
-
-if __name__ == "__main__":
-    H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(load_postgres_review_data())
-    print(f"H shape: {H.shape}")
-
-    businesses = load_postgres_business_list_data(business_ids)
-
-    embeddings, word_to_ix = train_word2vec([b.name for b in businesses])
-
-    save_word2vec(embeddings, word_to_ix)
-
-    print("Model trained and saved ✔️")
