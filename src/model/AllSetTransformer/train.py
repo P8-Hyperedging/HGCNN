@@ -14,11 +14,11 @@ import os.path as osp
 import torch.nn as nn
 import torch.nn.functional as F
 
+import modelResult
 from .layers import *
 from .AllSetTransformer import *
 
 from data.AllSetTransformer_preprocessing import *
-from data.data import output_metrics_to_db
 from parameters import get_allset_parameters
 
 
@@ -117,7 +117,7 @@ class Train_AllSetTransformer:
               job_id = None,
               seed = None,
               socket_logger=None
-              ):
+              ) -> modelResult.ModelResult:
         total_start_time = time.time()
 
         if seed == None:
@@ -252,17 +252,10 @@ class Train_AllSetTransformer:
 
         parameters_json = json.dumps(parameters)
 
-
-        output_metrics_to_db(
-            model_name,
-            train_runtime,
-            total_runtime,
-            parameters_json,
-            train_acc,
-            valid_acc,
-            test_acc,
-            seed,
-            job_id
-        )
-
+        # Convert tensors to float for JSON serialization
+        train_acc_float = float(train_acc.item()) if torch.is_tensor(train_acc) else float(train_acc)
+        valid_acc_float = float(valid_acc.item()) if torch.is_tensor(valid_acc) else float(valid_acc)
+        test_acc_float = float(test_acc.item()) if torch.is_tensor(test_acc) else float(test_acc)
+        
         print('All done with AllSet!')
+        return modelResult.ModelResult(model_name, train_runtime, train_acc_float, valid_acc_float, test_acc_float, total_runtime, parameters_json, seed, job_id, num_epochs)

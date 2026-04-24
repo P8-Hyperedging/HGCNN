@@ -8,7 +8,8 @@ import torch
 import sys
 from torch import optim
 
-from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data, output_metrics_to_db
+import modelResult
+from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data
 from data.n_preprocessing import build_hypergraph_incidence_matrix, create_business_feature_matrix, create_label_vector
 from utils.utils import generate_G_from_H
 from utils.utils import generate_G_from_H
@@ -34,7 +35,7 @@ class Train_MoonLabHGNN:
             job_id=None,
             seed = None,
             socket_logger=None
-            ):
+            ) -> modelResult.ModelResult:
         total_runtime_start = time.time()
 
         if seed == None:
@@ -111,17 +112,9 @@ class Train_MoonLabHGNN:
 
         parameters_json = json.dumps(parameters)
 
-
-        output_metrics_to_db(
-            model_name=model_name,
-            training_time=train_runtime,
-            total_runtime=total_runtime,
-            parameters=parameters_json,
-            #Psycopg2 doesn't play nice when a tensor is parsed. Therefore check if valid_acc is tensor and convert to float if so.
-            valid_acc=float(valid_acc.item()*100) if torch.is_tensor(valid_acc) else valid_acc*100,
-            seed=seed,
-            job_id=job_id
-        )
+        # Convert tensor to float for JSON serialization
+        valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, num_epochs)
 
 def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
@@ -149,29 +142,20 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
             else:
                 model.eval()  # Set model to evaluate mode
 
-            running_loss = 0.0
-            running_corrects = 0
-
             idx = idx_train if phase == 'train' else idx_test
 
-            # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
                 outputs = model(fts, G)
                 loss = criterion(outputs[idx], lbls[idx])
                 _, preds = torch.max(outputs, 1)
 
-                # backward + optimize only if in training phase
                 if phase == 'train':
                     loss.backward()
                     optimizer.step()
 
-            # statistics
-            running_loss += loss.item() * fts.size(0)
-            running_corrects += torch.sum(preds[idx] == lbls.data[idx])
-
-            epoch_loss = running_loss / len(idx)
-            epoch_acc = running_corrects.double() / len(idx)
+            epoch_loss = loss.item()
+            epoch_acc = (preds[idx] == lbls[idx]).float().mean()
 
             if epoch % print_freq == 0:
                 msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'

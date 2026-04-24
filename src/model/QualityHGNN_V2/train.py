@@ -10,6 +10,7 @@ import json
 import sys
 
 import torch
+import modelResult
 from model.QualityHGNN_V2.QHGNN import QHGNN_v2
 from torch import device, optim, split
 
@@ -24,7 +25,7 @@ class Train_QHGNN_v2:
         self.reviews = load_postgres_review_data()
 
     def train(self, num_epochs=200,
-              lr=0.009,
+              lr=0.001,
               hidden_layer_size=256,
               train_proportion=0.8,
               dropout=0.5,
@@ -32,12 +33,14 @@ class Train_QHGNN_v2:
               gamma=0.5,
               milestones_input="50,100",
               model_name="QHGNN_v2",
+              quality_weight=1.0,
               job_id=None,
               seed = None,
               socket_logger=None,
               generate_statistics=False,
-              frame_skip=1
-              ):
+              frame_skip=1,
+              patience=100
+              )-> modelResult.ModelResult:
         total_runtime_start = time.time()
 
         if seed == None:
@@ -47,6 +50,7 @@ class Train_QHGNN_v2:
         random.seed(seed)
         np.random.seed(seed)
         torch.manual_seed(seed)
+        torch.use_deterministic_algorithms(True)
         if torch.cuda.is_available():
             torch.cuda.manual_seed_all(seed)
             torch.backends.cudnn.deterministic = True
@@ -119,6 +123,7 @@ class Train_QHGNN_v2:
             in_ch=fts.shape[1],
             n_class=n_class,
             n_hid=hidden_layer_size,
+            quality_weight=quality_weight,
             dropout=dropout
         ).to(device)
 
@@ -127,7 +132,7 @@ class Train_QHGNN_v2:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, LS=LS, RS=RS, Q=Q, job_id=job_id, socket_logger=socket_logger, patience=patience)
 
         # Generate diagnostic plots and GIF after training completes (VRAM-efficient approach)
         if generate_statistics:
@@ -143,141 +148,162 @@ class Train_QHGNN_v2:
             "Hidden Layer Size": hidden_layer_size,
             "Learning Rate": lr,
             "Weight Decay": weight_decay,
+            "Quality Weight": quality_weight,
             "Epochs": num_epochs,
             "Train Proportion": train_proportion,
             "Dropout": dropout,
+            "Total Epochs": total_epochs,
+            "Patience": patience,
         }
 
         parameters_json = json.dumps(parameters)
 
 
-        output_metrics_to_db(
+        log_model_metrics(
             model_name=model_name,
             job_id=job_id,
             training_time=train_runtime,
             total_runtime=total_runtime,
             parameters=parameters_json,
-            #Psycopg2 doesn't play nice when a tensor is parsed. Therefore check if valid_acc is tensor and convert to float if so.
-            valid_acc=float(valid_acc.item()*100) if torch.is_tensor(valid_acc) else valid_acc*100,
+            valid_acc=float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else valid_acc * 100,
+            valid_f1=float(valid_f1.item()) if torch.is_tensor(valid_f1) else float(valid_f1),
             seed=seed
         )
 
+        # Convert tensors to Python floats for JSON serialization
+        valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
+        
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, total_epochs)
 
-def train_model_QHGNN_v2(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None):
-    since = time.time()
 
-    n_class = int(lbls.max()) + 1
-    f1_metric = MulticlassF1Score(num_classes=n_class, average="macro").to(fts.device)
-    precision_metric = MulticlassPrecision(num_classes=n_class, average="macro").to(fts.device)
-    recall_metric = MulticlassRecall(num_classes=n_class, average="macro").to(fts.device)
-    confusion_metric = MulticlassConfusionMatrix(num_classes=n_class).to(fts.device)
-    majority_class = torch.bincount(lbls[idx_train]).argmax()
-    baseline_acc = (lbls[idx_test] == majority_class).float().mean()
+    def train_model_QHGNN_v2(self, model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None, patience=None):
+        since = time.time()
 
-    best_model_wts = copy.deepcopy(model.state_dict())
-    best_acc = 0.0
+        # Early stopping parameters
+        epochs_no_improve = 0
+        stop_training = False
+        total_epochs = 0
 
-    for epoch in range(num_epochs):
-        if epoch % print_freq == 0:
-            seperator = '-' * 10
-            msg = f'Epoch {epoch}/{num_epochs - 1}'
-            if socket_logger:
-                socket_logger(seperator, job_id=job_id, progress=epoch)
-                socket_logger(msg, job_id=job_id, progress=epoch)
-            else:
-                print(seperator)
-                print(msg)
 
-        # Each epoch has a training and validation phase
-        for phase in ['train', 'val']:
-            if phase == 'train':
-                scheduler.step()
-                model.train()  # Set model to training mode
-            else:
-                model.eval()  # Set model to evaluate mode
+        n_class = int(lbls.max()) + 1
+        f1_metric = MulticlassF1Score(num_classes=n_class, average="macro").to(fts.device)
+        precision_metric = MulticlassPrecision(num_classes=n_class, average="macro").to(fts.device)
+        recall_metric = MulticlassRecall(num_classes=n_class, average="macro").to(fts.device)
+        confusion_metric = MulticlassConfusionMatrix(num_classes=n_class).to(fts.device)
+        majority_class = torch.bincount(lbls[idx_train]).argmax()
+        baseline_acc = (lbls[idx_test] == majority_class).float().mean()
 
-            running_loss = 0.0
-            running_corrects = 0
+        best_model_wts = copy.deepcopy(model.state_dict())
+        best_acc = 0.0
+        best_f1 = 0.0
 
-            idx = idx_train if phase == 'train' else idx_test
-
-            # Iterate over data.
-            optimizer.zero_grad()
-            with torch.set_grad_enabled(phase == 'train'):
-                outputs = model(fts, LS, RS, Q)
-                loss = criterion(outputs[idx], lbls[idx])
-                print(f"Loss computed: {loss.item()}")
-                _, preds = torch.max(outputs, 1)
-
-                # backward + optimize only if in training phase
-                if phase == 'train':
-                    loss.backward()
-                    optimizer.step()
-
-            # statistics
-            running_loss += loss.item() * fts.size(0)
-            running_corrects += torch.sum(preds[idx] == lbls.data[idx])
-
-            epoch_loss = running_loss / len(idx)
-            epoch_acc = running_corrects.double() / len(idx)
-
-            if phase == 'val':
-                f1_metric.reset()
-                precision_metric.reset()
-                recall_metric.reset()
-                confusion_metric.reset()
-                f1 = f1_metric(preds[idx], lbls[idx])
-                precision = precision_metric(preds[idx], lbls[idx])
-                recall = recall_metric(preds[idx], lbls[idx])
-                confusion = confusion_metric(preds[idx], lbls[idx]).detach().cpu().tolist()
-                confusion_rows = "\n".join(str(row) for row in confusion) # Newline between rows to make it readable
+        for epoch in range(num_epochs):
+            total_epochs += 1
 
             if epoch % print_freq == 0:
-                if phase == 'val':
-                    delta_acc = epoch_acc - baseline_acc
-                    msg = (
-                        f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f} '
-                        f'MajorityOnlyAcc: {baseline_acc:.4f} DeltaAcc: {delta_acc:.4f} '
-                        f'MacroP: {precision:.4f} MacroR: {recall:.4f} MacroF1: {f1:.4f}'
-                    )
-                else:
-                    msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
+                seperator = '-' * 10
+                msg = f'Epoch {epoch}/{num_epochs - 1}'
                 if socket_logger:
+                    socket_logger(seperator, job_id=job_id, progress=epoch)
                     socket_logger(msg, job_id=job_id, progress=epoch)
                 else:
+                    print(seperator)
                     print(msg)
+
+            # Each epoch has a training and validation phase
+            for phase in ['train', 'val']:
+                if phase == 'train':
+                    scheduler.step()
+                    model.train()  # Set model to training mode
+                else:
+                    model.eval()  # Set model to evaluate mode
+
+                idx = idx_train if phase == 'train' else idx_test
+
+                optimizer.zero_grad()
+                with torch.set_grad_enabled(phase == 'train'):
+                    outputs = model(fts, LS, RS, Q)
+                    loss = criterion(outputs[idx], lbls[idx])
+                    _, preds = torch.max(outputs, 1)
+
+                    if phase == 'train':
+                        loss.backward()
+                        optimizer.step()
+
+                epoch_loss = loss.item()
+                epoch_acc = (preds[idx] == lbls[idx]).float().mean()
+
+                if phase == 'val':
+                    f1_metric.reset()
+                    precision_metric.reset()
+                    recall_metric.reset()
+                    confusion_metric.reset()
+                    f1 = f1_metric(preds[idx], lbls[idx])
+                    precision = precision_metric(preds[idx], lbls[idx])
+                    recall = recall_metric(preds[idx], lbls[idx])
+                    confusion = confusion_metric(preds[idx], lbls[idx]).detach().cpu().tolist()
+                    confusion_rows = "\n".join(str(row) for row in confusion) # Newline between rows to make it readable
+                    best_f1 = f1 if f1 > best_f1 else best_f1
+                    # Early stopping check based on validation accuracy improvement
+                    if epoch_acc > best_acc + 1e-4:
+                        best_acc = epoch_acc
+                        best_model_wts = copy.deepcopy(model.state_dict())
+                        epochs_no_improve = 0
+                    else:
+                        epochs_no_improve += 1
+
+                if epoch % print_freq == 0:
                     if phase == 'val':
-                        print('Confusion Matrix:')
-                        print(confusion_rows)
+                        delta_acc = epoch_acc - baseline_acc
+                        msg = (
+                            f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f} '
+                            f'MajorityOnlyAcc: {baseline_acc:.4f} DeltaAcc: {delta_acc:.4f} '
+                            f'MacroP: {precision:.4f} MacroR: {recall:.4f} MacroF1: {f1:.4f}'
+                        )
+                    else:
+                        msg = f'{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}'
+                    if socket_logger:
+                        socket_logger(msg, job_id=job_id, progress=epoch)
+                    else:
+                        print(msg)
+                        if phase == 'val':
+                            print('Confusion Matrix:')
+                            print(confusion_rows)
 
-            # deep copy the model
-            if phase == 'val' and epoch_acc > best_acc:
-                best_acc = epoch_acc
-                best_model_wts = copy.deepcopy(model.state_dict())
+                # Early stopping check after validation phase
+                if epochs_no_improve >= patience:
+                    stop_training = True
+                    if socket_logger:
+                        socket_logger(f'Early stopping at epoch {epoch} with best val Acc: {best_acc:.4f}', job_id=job_id, progress=epoch)
+                    else:
+                        print(f'Early stopping at epoch {epoch} with best val Acc: {best_acc:.4f}')
+                    break
 
+            if stop_training:
+                break
 
-        if epoch % print_freq == 0:
-            msg = f'Best val Acc: {best_acc:4f}'
-            if socket_logger:
-                socket_logger(msg, job_id, progress=epoch)
-            else:
-                print(msg)
+            if epoch % print_freq == 0:
+                msg = f'Best val Acc: {best_acc:4f}'
+                if socket_logger:
+                    socket_logger(msg, job_id, progress=epoch)
+                else:
+                    print(msg)
 
-    time_elapsed = time.time() - since
-    time_msg = f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s'
-    best_msg = f'Best val Acc: {best_acc:.4f}'
+        time_elapsed = time.time() - since
+        time_msg = f'Training complete in {time_elapsed // 60:.0f}m {time_elapsed % 60:.0f}s'
+        best_msg = f'Best val Acc: {best_acc:.4f}'
 
-    if socket_logger:
-        # Send final messages
-        socket_logger(time_msg, job_id=job_id, progress=num_epochs)
-        socket_logger(best_msg, job_id=job_id, progress=num_epochs)
+        if socket_logger:
+            # Send final messages
+            socket_logger(time_msg, job_id=job_id, progress=num_epochs)
+            socket_logger(best_msg, job_id=job_id, progress=num_epochs)
 
-        # Optional: special final status so frontend knows training is finished
-        socket_logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
-    else:
-        print(time_msg)
-        print(best_msg)
+            # Optional: special final status so frontend knows training is finished
+            socket_logger("TRAINING_COMPLETE", job_id=job_id, progress=num_epochs)
+        else:
+            print(time_msg)
+            print(best_msg)
 
-    # load best model weights
-    model.load_state_dict(best_model_wts)
-    return model, best_acc, time_elapsed
+        # load best model weights
+        model.load_state_dict(best_model_wts)
+        return model, best_acc, best_f1, time_elapsed, total_epochs

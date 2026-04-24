@@ -6,7 +6,7 @@ from model.QualityHGNN_V2.train import Train_QHGNN_v2
 
 
 if __name__ == "__main__":
-    epochs = 10
+    epochs = 100
     statistics_frame_skip = 3
     generate_statistics = True
     start = time.time()
@@ -20,5 +20,5 @@ if __name__ == "__main__":
     #trainer.train()
 
     elapsed = time.time() - start
-    print(f"\n=== Total time for {epochs} epochs: {elapsed:.2f}s ===")
+    print(f"\n=== Total time for {total_epochs} epochs: {elapsed:.2f}s ===")
 

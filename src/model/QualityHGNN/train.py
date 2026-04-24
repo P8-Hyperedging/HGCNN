@@ -9,11 +9,14 @@ import json
 import sys
 
 import torch
+
+import modelResult
 from model.QualityHGNN.QHGNN import QHGNN
 from torch import device, optim, split
 
 from data.data import *
 from data.n_preprocessing import *
+from modelResult import ModelResult
 from utils.utils import *
 
 
@@ -22,7 +25,7 @@ class Train_QHGNN:
         self.reviews = load_postgres_review_data()
 
     def train(self, num_epochs=200,
-              lr=0.009,
+              lr=0.001,
               hidden_layer_size=256,
               train_proportion=0.8,
               dropout=0.5,
@@ -33,7 +36,7 @@ class Train_QHGNN:
               job_id=None,
               seed = None,
               socket_logger=None
-              ):
+              ) -> modelResult.ModelResult:
         total_runtime_start = time.time()
 
         if seed == None:
@@ -126,17 +129,9 @@ class Train_QHGNN:
 
         parameters_json = json.dumps(parameters)
 
-
-        output_metrics_to_db(
-            model_name=model_name,
-            job_id=job_id,
-            training_time=train_runtime,
-            total_runtime=total_runtime,
-            parameters=parameters_json,
-            #Psycopg2 doesn't play nice when a tensor is parsed. Therefore check if valid_acc is tensor and convert to float if so.
-            valid_acc=float(valid_acc.item()*100) if torch.is_tensor(valid_acc) else valid_acc*100,
-            seed=seed
-        )
+        # Convert tensor to float for JSON serialization
+        valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, num_epochs)
 
 
 def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
@@ -172,29 +167,20 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
             else:
                 model.eval()  # Set model to evaluate mode
 
-            running_loss = 0.0
-            running_corrects = 0
-
             idx = idx_train if phase == 'train' else idx_test
 
-            # Iterate over data.
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
                 outputs = model(fts, G)
                 loss = criterion(outputs[idx], lbls[idx])
                 _, preds = torch.max(outputs, 1)
 
-                # backward + optimize only if in training phase
                 if phase == 'train':
                     loss.backward()
                     optimizer.step()
 
-            # statistics
-            running_loss += loss.item() * fts.size(0)
-            running_corrects += torch.sum(preds[idx] == lbls.data[idx])
-
-            epoch_loss = running_loss / len(idx)
-            epoch_acc = running_corrects.double() / len(idx)
+            epoch_loss = loss.item()
+            epoch_acc = (preds[idx] == lbls[idx]).float().mean()
 
             if phase == 'val':
                 f1_metric.reset()

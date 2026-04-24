@@ -78,6 +78,8 @@ def get_qhgnn_parameters() -> list[Parameter]:
         InputParameter(name="gamma", min=0, max=1, default=0.5, type=InputType.INPUT),
         InputParameter(name="milestones input", min=0, max=200, default=50, type=InputType.INPUT),
         InputParameter(name="seed", min=0, max=2**32-1, default=None, type=InputType.INPUT),
+        InputParameter(name="patience", min=0, max=1000, default=10, type=InputType.INPUT),
+        InputParameter(name="Quality weight", min=0, max=1, default=0.25, type=InputType.INPUT),
     ]
 
 
