@@ -33,9 +33,14 @@ if __name__ == "__main__":
 
     trainer = Train_QHGNN_v2()  # DB and preprocessing happen exactly once here
 
-    study = optuna.create_study(direction="maximize", study_name="QHGNN_v2_accuracy")
+    study = optuna.create_study(
+        direction="maximize",
+        study_name="QHGNN_v2_accuracy",
+        storage="sqlite:///QHGNN_v2_study.db",
+        load_if_exists=True
+    )
     study.optimize(lambda trial: objective(trial, trainer), n_trials=N_TRIALS)
-
+    
     elapsed = time.time() - start
 
     best = study.best_trial
