@@ -65,7 +65,7 @@ class Train_QHGNN_v2:
     def train(self, num_epochs=200,
               lr=0.001,
               hidden_layer_size=256,
-              train_proportion=0.8,
+              train_proportion=0.5,
               dropout=0.5,
               weight_decay=5e-4,
               gamma=0.5,
@@ -92,11 +92,12 @@ class Train_QHGNN_v2:
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
 
-        train_split, valid_split = rand_train_test_idx_simple(self.n, train_prop=train_proportion)
+        train_split, valid_split, test_split = rand_train_test_idx_simple(self.n, train_prop=train_proportion)
         print(f"Total nodes: {self.n}, Training nodes: {len(train_split)}, Validation nodes: {len(valid_split)}")
 
         idx_train = train_split.long().to(self.device)
         idx_test  = valid_split.long().to(self.device)
+        idx_valid = test_split.long().to(self.device)
 
         model_ft = QHGNN_v2(
             in_ch=self.fts.shape[1],
@@ -111,7 +112,32 @@ class Train_QHGNN_v2:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=self.fts, lbls=self.lbls, LS=self.LS, RS=self.RS, Q=self.Q, job_id=job_id, socket_logger=socket_logger, patience=patience)
+        model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(
+            model_ft, 
+            criterion, 
+            optimizer, 
+            scheduler, 
+            num_epochs, 
+            print_freq=10, 
+            idx_train=idx_train, 
+            idx_valid=idx_valid, 
+            fts=self.fts, 
+            lbls=self.lbls, 
+            LS=self.LS, 
+            RS=self.RS, 
+            Q=self.Q, 
+            job_id=job_id, 
+            socket_logger=socket_logger, 
+            patience=patience)
+
+        model_ft.eval()
+        with torch.no_grad():
+            outputs = model_ft(self.fts, self.LS, self.RS, self.Q)
+            if idx_test.numel() == 0:
+                test_acc = torch.tensor(0.0, device=self.fts.device)
+            else:
+                test_preds = torch.argmax(outputs[idx_test], dim=1)
+                test_acc = (test_preds == self.lbls[idx_test]).float().mean()
 
         total_runtime = time.time() - total_runtime_start
 
@@ -138,16 +164,18 @@ class Train_QHGNN_v2:
             parameters=parameters_json,
             valid_acc=float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else valid_acc * 100,
             valid_f1=float(valid_f1.item()) if torch.is_tensor(valid_f1) else float(valid_f1),
-            seed=seed
+            seed=seed,
+            test_acc=float(test_acc.item() * 100) if torch.is_tensor(test_acc) else test_acc * 100,
         )
 
         # Convert tensors to Python floats for JSON serialization
         valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
-        
-        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, total_epochs)
+        test_acc_float = float(test_acc.item() * 100) if torch.is_tensor(test_acc) else float(test_acc * 100)
+
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, test_acc_float, total_runtime, parameters_json, seed, job_id, total_epochs)
 
 
-    def train_model_QHGNN_v2(self, model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None, patience=None):
+    def train_model_QHGNN_v2(self, model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_valid=None, fts=None, lbls=None, LS=None, RS=None, Q=None, job_id=None, socket_logger=None, patience=None):
         since = time.time()
 
         # Early stopping parameters
@@ -162,7 +190,7 @@ class Train_QHGNN_v2:
         recall_metric = MulticlassRecall(num_classes=n_class, average="macro").to(fts.device)
         confusion_metric = MulticlassConfusionMatrix(num_classes=n_class).to(fts.device)
         majority_class = torch.bincount(lbls[idx_train]).argmax()
-        baseline_acc = (lbls[idx_test] == majority_class).float().mean()
+        baseline_acc = (lbls[idx_valid] == majority_class).float().mean()
 
         best_model_wts = copy.deepcopy(model.state_dict())
         best_acc = 0.0
@@ -184,12 +212,11 @@ class Train_QHGNN_v2:
             # Each epoch has a training and validation phase
             for phase in ['train', 'val']:
                 if phase == 'train':
-                    scheduler.step()
                     model.train()  # Set model to training mode
                 else:
                     model.eval()  # Set model to evaluate mode
 
-                idx = idx_train if phase == 'train' else idx_test
+                idx = idx_train if phase == 'train' else idx_valid
 
                 optimizer.zero_grad()
                 with torch.set_grad_enabled(phase == 'train'):
@@ -200,6 +227,7 @@ class Train_QHGNN_v2:
                     if phase == 'train':
                         loss.backward()
                         optimizer.step()
+                        scheduler.step()
 
                 epoch_loss = loss.item()
                 epoch_acc = (preds[idx] == lbls[idx]).float().mean()

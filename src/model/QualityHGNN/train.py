@@ -69,9 +69,12 @@ class Train_QHGNN:
             print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
 
         n = len(businesses)
-        train_split, valid_split = rand_train_test_idx_simple(n, train_prop=train_proportion)
+        train_split, valid_split, test_split = rand_train_test_idx_simple(n, train_prop=train_proportion)
 
-        print(f"Total nodes: {n}, Training nodes: {len(train_split)}, Validation nodes: {len(valid_split)}")
+        print(
+            f"Total nodes: {n}, Training nodes: {len(train_split)}, Validation nodes: {len(valid_split)}, "
+            f"Test nodes: {len(test_split)}"
+        )
         print(f"Sample train node IDs (first 10): {train_split[:10]}")
         print(f"Sample val node IDs (first 10): {valid_split[:10]}")
 
@@ -98,7 +101,8 @@ class Train_QHGNN:
         lbls = torch.Tensor(lv).long().to(device)
         G = torch.Tensor(G).to(device)
         idx_train = train_split.long().to(device)
-        idx_test = valid_split.long().to(device)
+        idx_valid = valid_split.long().to(device)
+        idx_test = test_split.long().to(device)
 
         n_class = int(lbls.max()) + 1
 
@@ -114,7 +118,30 @@ class Train_QHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_QHGNN(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, train_runtime = train_model_QHGNN(
+            model_ft,
+            criterion,
+            optimizer,
+            scheduler,
+            num_epochs,
+            print_freq=10,
+            idx_train=idx_train,
+            idx_valid=idx_valid,
+            fts=fts,
+            lbls=lbls,
+            G=G,
+            job_id=job_id,
+            socket_logger=socket_logger,
+        )
+
+        model_ft.eval()
+        with torch.no_grad():
+            outputs = model_ft(fts, G)
+            if idx_test.numel() == 0:
+                test_acc = torch.tensor(0.0, device=fts.device)
+            else:
+                test_preds = torch.argmax(outputs[idx_test], dim=1)
+                test_acc = (test_preds == lbls[idx_test]).float().mean()
 
         total_runtime = time.time() - total_runtime_start
 
@@ -131,10 +158,11 @@ class Train_QHGNN:
 
         # Convert tensor to float for JSON serialization
         valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
-        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, num_epochs)
+        test_acc_float = float(test_acc.item() * 100) if torch.is_tensor(test_acc) else float(test_acc * 100)
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, test_acc_float, total_runtime, parameters_json, seed, job_id, num_epochs)
 
 
-def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
+def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=1, idx_train=None, idx_valid=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
 
     n_class = int(lbls.max()) + 1
@@ -143,7 +171,7 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
     recall_metric = MulticlassRecall(num_classes=n_class, average="macro").to(fts.device)
     confusion_metric = MulticlassConfusionMatrix(num_classes=n_class).to(fts.device)
     majority_class = torch.bincount(lbls[idx_train]).argmax()
-    baseline_acc = (lbls[idx_test] == majority_class).float().mean()
+    baseline_acc = (lbls[idx_valid] == majority_class).float().mean()
 
     best_model_wts = copy.deepcopy(model.state_dict())
     best_acc = 0.0
@@ -162,12 +190,11 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
         # Each epoch has a training and validation phase
         for phase in ['train', 'val']:
             if phase == 'train':
-                scheduler.step()
                 model.train()  # Set model to training mode
             else:
                 model.eval()  # Set model to evaluate mode
 
-            idx = idx_train if phase == 'train' else idx_test
+            idx = idx_train if phase == 'train' else idx_valid
 
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
@@ -178,6 +205,7 @@ def train_model_QHGNN(model, criterion, optimizer, scheduler, num_epochs=25, pri
                 if phase == 'train':
                     loss.backward()
                     optimizer.step()
+                    scheduler.step()
 
             epoch_loss = loss.item()
             epoch_acc = (preds[idx] == lbls[idx]).float().mean()
