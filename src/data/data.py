@@ -207,7 +207,7 @@ def group_reviews_by_user(reviews):
     return user_to_businesses
 
 
-def log_model_metrics(model_name, job_id, training_time, total_runtime, parameters, valid_acc, valid_f1=None, seed=None):
+def log_model_metrics(model_name, job_id, training_time, total_runtime, parameters, valid_acc, valid_f1=None, seed=None, test_acc=None):
     import json
     params = json.loads(parameters) if isinstance(parameters, str) else parameters
     sep = "=" * 50
@@ -216,6 +216,8 @@ def log_model_metrics(model_name, job_id, training_time, total_runtime, paramete
     print(sep)
     print(f"  Seed:            {seed}")
     print(f"  Val Accuracy:    {valid_acc:.2f}%")
+    if test_acc is not None:
+        print(f"  Test Accuracy:   {test_acc:.2f}%")
     if valid_f1 is not None:
         print(f"  Val Macro F1:    {valid_f1:.4f}")
     print(f"  Training time:   {training_time:.1f}s")
