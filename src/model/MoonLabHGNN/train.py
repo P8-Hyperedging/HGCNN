@@ -10,7 +10,7 @@ from torch import optim
 
 import modelResult
 from data.data import load_postgres_business_list_data, load_postgres_business_list_opening_hours, load_postgres_review_data
-from data.n_preprocessing import build_hypergraph_incidence_matrix, create_business_feature_matrix, create_label_vector
+from data.n_preprocessing import build_hypergraph_incidence_matrix, create_business_feature_matrix, create_label_vector, rand_train_test_idx_simple
 from utils.utils import generate_G_from_H
 from utils.utils import generate_G_from_H
 from .HGNN import HGNN
@@ -61,12 +61,9 @@ class Train_MoonLabHGNN:
         lv = create_label_vector(businesses)
 
         n = len(businesses)
-        split = int(n * train_proportion)
-
-        training_range = np.arange(0, split)
-        testing_range = np.arange(split, n)
-
-        print(f"Training range: {0} - {split}, Testing range: {split+1} - {2*split}")
+        
+        idx_train, idx_valid, idx_test = rand_train_test_idx_simple(n, train_prop=train_proportion)
+        print(f"Training nodes: {len(idx_train)}, Validation nodes: {len(idx_valid)}, Test nodes: {len(idx_test)}")
 
         print(f"H shape: {H.shape}")
 
@@ -80,8 +77,9 @@ class Train_MoonLabHGNN:
         lbls = torch.Tensor(lv).long().to(device)
         G = torch.Tensor(G).to(device)
         
-        idx_train = torch.Tensor(training_range).long().to(device)
-        idx_test = torch.Tensor(testing_range).long().to(device)
+        idx_train = idx_train.long().to(device)
+        idx_valid = idx_valid.long().to(device)
+        idx_test = idx_test.long().to(device)
 
         n_class = int(lbls.max()) + 1
 
@@ -97,7 +95,7 @@ class Train_MoonLabHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, train_runtime = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_valid=idx_valid, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=socket_logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -116,7 +114,7 @@ class Train_MoonLabHGNN:
         valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
         return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, num_epochs)
 
-def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
+def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_valid=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
 
     best_model_wts = copy.deepcopy(model.state_dict())
@@ -141,7 +139,7 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
             else:
                 model.eval()  # Set model to evaluate mode
 
-            idx = idx_train if phase == 'train' else idx_test
+            idx = idx_train if phase == 'train' else idx_valid
 
             optimizer.zero_grad()
             with torch.set_grad_enabled(phase == 'train'):
