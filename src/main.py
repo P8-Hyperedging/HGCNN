@@ -28,7 +28,7 @@ def objective(trial, trainer):
 
 
 if __name__ == "__main__":
-    N_TRIALS = 50
+    N_TRIALS = 100
 
     start = time.time()
 
