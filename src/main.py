@@ -10,7 +10,7 @@ def objective(trial, trainer):
     dropout           = trial.suggest_float("dropout", 0.1, 0.7)
     weight_decay      = trial.suggest_float("weight_decay", 1e-5, 1e-2, log=True)
     quality_weight    = trial.suggest_float("quality_weight", 0.0, 2.0)  # QHGNN only
-    patience          = trial.suggest_int("patience", 50, 200)  # QHGNN only
+    #patience          = trial.suggest_int("patience", 50, 200)  # QHGNN only
     gamma             = trial.suggest_float("gamma", 0.1, 0.9)
 
     result = trainer.train(
@@ -20,7 +20,7 @@ def objective(trial, trainer):
         dropout=dropout,
         weight_decay=weight_decay,
         quality_weight=quality_weight,  # QHGNN only
-        patience=patience,  # QHGNN only
+        patience=1000,  # QHGNN only
         gamma=gamma,
         seed=42
     )
@@ -28,7 +28,7 @@ def objective(trial, trainer):
 
 
 if __name__ == "__main__":
-    N_TRIALS = 30
+    N_TRIALS = 50
 
     start = time.time()
 
