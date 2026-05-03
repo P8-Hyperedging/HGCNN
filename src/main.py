@@ -37,8 +37,8 @@ if __name__ == "__main__":
 
     study = optuna.create_study(
         direction="maximize",
-        study_name="Moonlab-accuracy",
-        storage="sqlite:///moonlab_study.db",
+        study_name="Dynamic_Grad",
+        storage="sqlite:///dynamic_grad.db",
         load_if_exists=True
     )
     study.optimize(lambda trial: objective(trial, trainer), n_trials=N_TRIALS)
