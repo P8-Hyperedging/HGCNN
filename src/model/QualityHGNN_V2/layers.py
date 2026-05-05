@@ -9,7 +9,7 @@ class QHGNN_conv_v2(nn.Module):
         super(QHGNN_conv_v2, self).__init__()
 
         self.quality_weight = quality_weight
-        self.G 
+        self.G = None
 
         self.quality = quality
         self.weight = Parameter(torch.Tensor(in_ft, out_ft)) # Create new feature matrix for hidden layer
