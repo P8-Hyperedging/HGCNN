@@ -126,15 +126,26 @@ def create_label_vector(businesses):
         
     return labels
 
-def rand_train_test_idx_simple(n_nodes, train_prop=0.75) -> tuple[torch.Tensor, torch.Tensor]:
-    """ Simple random split. Train proportion is provide, the rest is validation. """
+def rand_train_test_idx_simple(
+    n_nodes, train_prop=0.5, valid_prop=None
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Simple random split. Train proportion is provided; remaining nodes are split into validation and test."""
     n = n_nodes
+    if valid_prop is None:
+        valid_prop = (1 - train_prop) / 2
+    if train_prop < 0 or train_prop > 1:
+        raise ValueError("train_prop must be between 0 and 1.")
+    if valid_prop < 0 or train_prop + valid_prop > 1:
+        raise ValueError("train_prop + valid_prop must be between 0 and 1.")
+
     train_num = int(n * train_prop)
-    valid_num = int(n * (1-train_prop))
-    
+    valid_num = int(n * valid_prop)
+    test_num = n - train_num - valid_num
+
     perm = torch.as_tensor(np.random.permutation(n))
-    
+
     train_idx = perm[:train_num]
     valid_idx = perm[train_num:train_num + valid_num]
-    
-    return train_idx, valid_idx
+    test_idx = perm[train_num + valid_num:train_num + valid_num + test_num]
+
+    return train_idx, valid_idx, test_idx
