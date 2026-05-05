@@ -1,7 +1,9 @@
 import math
+import os
 import torch
 import torch.nn as nn
 from torch.nn.parameter import Parameter
+from data.statistics import QualityStatistics
 
 
 class QHGNN_conv_v2(nn.Module):
@@ -30,12 +32,10 @@ class QHGNN_conv_v2(nn.Module):
         x = x.matmul(self.weight)
         if self.bias is not None:
             x = x + self.bias
-
         if not self.quality:
             G = LS.matmul(RS)
             x = G.matmul(x)
             return x
-
         with torch.no_grad():
             membership = (LS > 0).float()                          # (N, E)
             nodes_per_edge = membership.sum(dim=0).clamp(min=1)    # (E,)
@@ -56,7 +56,6 @@ class QHGNN_conv_v2(nn.Module):
                 dists = dists * membership[:, start:end]           # zero out non-members
                 total_dists[start:end] = dists.sum(dim=0)
 
-
             # Normalize total_dists by its mean to keep distance_scores in reasonable range
             mean_total_dists = total_dists.mean()
             total_dists_normalized = total_dists / (mean_total_dists + 1e-8)  # Add small epsilon to avoid division by zero
@@ -64,7 +63,11 @@ class QHGNN_conv_v2(nn.Module):
             distance_scores = distance_scores * self.quality_weight           # scale by quality_weight
             Q_updated = torch.clamp(distance_scores * Q, min=0, max=10)
 
+            # Collect diagnostic data (no plots generated during training to save VRAM)
+            QualityStatistics.collect_diagnostic_data(Q, total_dists, total_dists_normalized, distance_scores, Q_updated)
+            
             G = (LS * Q_updated.unsqueeze(0)).matmul(RS)
 
         x = G.matmul(x)
+
         return x

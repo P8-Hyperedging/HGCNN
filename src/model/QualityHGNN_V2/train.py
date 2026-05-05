@@ -1,6 +1,7 @@
 
 import time
 import copy
+import os
 import numpy as np
 import torch
 from torchmetrics.classification import MulticlassConfusionMatrix, MulticlassF1Score, MulticlassPrecision, MulticlassRecall
@@ -15,6 +16,7 @@ from torch import device, optim, split
 
 from data.data import *
 from data.n_preprocessing import *
+from data.statistics import QualityStatistics
 from utils.utils import *
 
 
@@ -35,6 +37,8 @@ class Train_QHGNN_v2:
               job_id=None,
               seed = None,
               socket_logger=None,
+              generate_statistics=False,
+              frame_skip=1,
               patience=100
               )-> modelResult.ModelResult:
         total_runtime_start = time.time()
@@ -82,6 +86,9 @@ class Train_QHGNN_v2:
 
         Q = create_quality_matrix_from_H(self.reviews)
         print(f"Q shape: {Q.shape}")
+        
+        # Set frame_skip for diagnostic data collection during training
+        QualityStatistics.frame_skip = frame_skip
 
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
         # Generating G terms
@@ -156,6 +163,14 @@ class Train_QHGNN_v2:
             else:
                 test_preds = torch.argmax(outputs[idx_test], dim=1)
                 test_acc = (test_preds == lbls[idx_test]).float().mean()
+
+        # Generate diagnostic plots and GIF after training completes (VRAM-efficient approach)
+        if generate_statistics:
+            print("\n=== Generating diagnostic plots and GIF ===")
+            stats_dir = os.path.join(os.path.dirname(__file__), '..', 'statistics')
+            QualityStatistics.finalize_diagnostics(stats_dir, frame_skip=frame_skip)
+        else:
+            print("\n=== Skipping statistics generation ===")
 
         total_runtime = time.time() - total_runtime_start
 
