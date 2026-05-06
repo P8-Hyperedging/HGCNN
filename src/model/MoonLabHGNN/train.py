@@ -95,7 +95,7 @@ class Train_MoonLabHGNN:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
-        model_ft, valid_acc, train_runtime = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_valid=idx_valid, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=socket_logger)
+        model_ft, valid_acc, train_runtime, test_acc = train_model_moonlab(model_ft, criterion, optimizer, scheduler, num_epochs, print_freq=10, idx_train=idx_train, idx_valid=idx_valid, idx_test=idx_test, fts=fts, lbls=lbls, G=G, job_id=job_id, socket_logger=socket_logger)
 
         total_runtime = time.time() - total_runtime_start
 
@@ -110,9 +110,10 @@ class Train_MoonLabHGNN:
 
         parameters_json = json.dumps(parameters)
 
-        # Convert tensor to float for JSON serialization
+        # Convert tensors to Python floats for JSON serialization
         valid_acc_float = float(valid_acc.item() * 100) if torch.is_tensor(valid_acc) else float(valid_acc * 100)
-        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, 0, total_runtime, parameters_json, seed, job_id, num_epochs)
+        test_acc_float = float(test_acc.item() * 100) if torch.is_tensor(test_acc) else float(test_acc * 100)
+        return modelResult.ModelResult(model_name, train_runtime, 0, valid_acc_float, test_acc_float, total_runtime, parameters_json, seed, job_id, num_epochs)
 
 def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, print_freq=500, idx_train=None, idx_valid=None, idx_test=None, fts=None, lbls=None, G=None, job_id=None, socket_logger=None):
     since = time.time()
@@ -198,4 +199,15 @@ def train_model_moonlab(model, criterion, optimizer, scheduler, num_epochs=25, p
 
     # load best model weights
     model.load_state_dict(best_model_wts)
-    return model, best_acc, time_elapsed
+    
+    # Calculate test accuracy
+    model.eval()
+    with torch.no_grad():
+        outputs = model(fts, G)
+        if idx_test.numel() == 0:
+            test_acc = torch.tensor(0.0, device=fts.device)
+        else:
+            test_preds = torch.argmax(outputs[idx_test], dim=1)
+            test_acc = (test_preds == lbls[idx_test]).float().mean()
+    
+    return model, best_acc, time_elapsed, test_acc
