@@ -11,10 +11,17 @@ class QHGNN_v2(nn.Module):
         # This means the model can't over-rely on any single feature.
         self.hgc1 = QHGNN_conv_v2(in_ch, n_hid)
         # in_ch is the number of input features per node, n_hid is the number of hidden nodes
-        self.hgc2 = QHGNN_conv_v2(n_hid, n_class, quality_weight=quality_weight, quality=True)
+        #elf.hgc2 = QHGNN_conv_v2(516,256)
+        #elf.hgc3 = QHGNN_conv_v2(256,128)
+        self.hgc4 = QHGNN_conv_v2(n_hid, n_class, quality_weight=quality_weight, quality=True)
+        
 
     def forward(self, x, LS, RS, Q):
         x = F.relu(self.hgc1(x, LS, Q, RS))
-        x = F.dropout(x, self.dropout)
-        x = self.hgc2(x, LS, Q, RS)
+        x = F.dropout(x, self.dropout, training = self.training)
+        #x = F.relu(self.hgc2(x, LS, Q, RS))
+        #x = F.dropout(x, self.dropout, training = self.training)
+        #x = F.relu(self.hgc3(x, LS, Q, RS))
+        #x = F.dropout(x, self.dropout, training = self.training)
+        x = self.hgc4(x, LS, Q, RS)
         return x

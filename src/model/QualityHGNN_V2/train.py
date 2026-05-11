@@ -22,9 +22,9 @@ class Train_QHGNN_v2:
     def __init__(self):
         self.reviews = load_postgres_review_data()
 
-        # H, business_ids, _ = build_hypergraph_incidence_matrix(self.reviews)  # Commented out - using KNN method instead
+        H, business_ids, _ = build_hypergraph_incidence_matrix(self.reviews)  # Commented out - using KNN method instead
         # Extract business_ids from reviews for data loading
-        _, business_ids, _ = build_hypergraph_incidence_matrix(self.reviews)
+        #_, business_ids, _ = build_hypergraph_incidence_matrix(self.reviews)
 
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)
@@ -33,7 +33,7 @@ class Train_QHGNN_v2:
         print(f"Feature matrix shape: {fm.shape}")
 
         # Build hypergraph using KNN method for ablation study
-        H = construct_H_with_KNN(fm, K_neigs=[10])
+        #H = construct_H_with_KNN(fm, K_neigs=[10])
         print(f"H shape (from KNN): {H.shape}")
 
         lv = create_label_vector(businesses)
@@ -43,8 +43,9 @@ class Train_QHGNN_v2:
         for label, count in zip(unique, counts):
             print(f"  Class {label}: {count} ({count/len(lv)*100:.1f}%)")
 
-        # Q = create_quality_matrix_from_H(self.reviews)  # Commented out - using identity matrix instead
-        Q = np.eye(H.shape[0])  # Replace with diagonal matrix of ones (identity matrix)
+        Q = create_quality_matrix_from_H(self.reviews)  # Commented out - using identity matrix instead
+        #Q = np.eye(H.shape[0])  # Replace with diagonal matrix of ones (identity matrix)
+        #Q = np.ones(H.shape[1])  # 1D vector of ones, one per hyperedge
         print(f"Q shape: {Q.shape}")
 
         (DV2_H, _, invDE_HT_DV2) = generate_G_from_H(H, True)

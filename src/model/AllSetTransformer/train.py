@@ -132,14 +132,13 @@ class Train_AllSetTransformer:
             torch.cuda.manual_seed_all(seed)
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
+        
+        valid_proportion = (1 - train_proportion) / 2 
 
         # Load from database directly instead of using the wrapper class that Allset used.
         data = load_yelp_dataset(train_percent = train_proportion)
         self.num_features = data.num_node_features
-        self.num_classes = len(data.y.unique())
-
-        # Shift the y label to start with 0
-        self.num_classes = len(data.y.unique())
+        self.num_classes = 9
         data.y = data.y - data.y.min()
         if not hasattr(data, 'n_x'):
             data.n_x = torch.tensor([data.x.shape[0]])
@@ -176,6 +175,9 @@ class Train_AllSetTransformer:
         num_params = count_parameters(model)
 
         model.train()
+        
+        print(train_proportion)
+        print(valid_proportion)
 
         split_idx_lst = []
         for run in range(self.runs):
@@ -183,7 +185,12 @@ class Train_AllSetTransformer:
                 data.y, train_prop=train_proportion, valid_prop=valid_proportion)
             split_idx_lst.append(split_idx)
         
-
+        split_idx = split_idx_lst[0]
+        print(f"total nodes : {data.y.shape[0]}")
+        print(f"Train set size: {split_idx['train'].shape[0]}")
+        print(f"Valid set size: {split_idx['valid'].shape[0]}")
+        print(f"Test set size: {split_idx['test'].shape[0]}")
+        print(f"Num classes: {self.num_classes}")
 
         ### Training loop ###
         train_start_time = time.time()
