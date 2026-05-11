@@ -9,6 +9,7 @@ class QHGNN_conv_v2(nn.Module):
         super(QHGNN_conv_v2, self).__init__()
 
         self.quality_weight = quality_weight
+        self.G = None
 
         self.quality = quality
         self.weight = Parameter(torch.Tensor(in_ft, out_ft)) # Create new feature matrix for hidden layer
@@ -31,9 +32,11 @@ class QHGNN_conv_v2(nn.Module):
         if self.bias is not None:
             x = x + self.bias
 
+        if self.G is None and not self.quality:
+            self.G = LS.matmul(RS)
+
         if not self.quality:
-            G = LS.matmul(RS)
-            x = G.matmul(x)
+            x = self.G.matmul(x)
             return x
 
         with torch.no_grad():
