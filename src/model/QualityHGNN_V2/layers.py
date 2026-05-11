@@ -32,9 +32,10 @@ class QHGNN_conv_v2(nn.Module):
         if self.bias is not None:
             x = x + self.bias
 
+        if self.G is None and not self.quality:
+            self.G = LS.matmul(RS)
+
         if not self.quality:
-            if self.G is None:
-                self.G = LS.matmul(RS)
             x = self.G.matmul(x)
             return x
 
