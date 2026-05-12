@@ -11,7 +11,7 @@ class QHGNN_conv_v2(nn.Module):
         self.quality_weight = quality_weight
         self.G = None
         self.membership = None
-        self.nodes_per_edge = None
+        self.nodes_per_edge_unsqueezed = None
 
         self.quality = quality
         self.weight = Parameter(torch.Tensor(in_ft, out_ft)) # Create new feature matrix for hidden layer
@@ -42,14 +42,13 @@ class QHGNN_conv_v2(nn.Module):
             return x
 
         with torch.no_grad():
-            if self.membership is None or self.nodes_per_edge is None:
-                membership = (LS > 0).float()                          # (N, E)
-                nodes_per_edge = membership.sum(dim=0)                 # (E,)
-                self.membership = membership
-                self.nodes_per_edge = nodes_per_edge
+            if self.membership is None or self.nodes_per_edge_unsqueezed is None:
+                self.membership = (LS > 0).float()                            # (N, E)
+                nodes_per_edge = self.membership.sum(dim=0)                   # (E,)
+                self.nodes_per_edge_unsqueezed = nodes_per_edge.unsqueeze(1)
 
             # Centroids for all hyperedges at once: (E, F)
-            centroids = self.membership.T.matmul(x) / self.nodes_per_edge.unsqueeze(1)
+            centroids = self.membership.T.matmul(x) / self.nodes_per_edge_unsqueezed
 
             # Compute total distance per hyperedge in chunks to limit memory
             E = LS.shape[1]
