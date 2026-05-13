@@ -30,3 +30,20 @@ def calculate_centroid_torch(feature_matrix):
 def calculate_total_distance_to_centroid_torch(local_feature_matrix, centroid):
     distances = torch.norm(local_feature_matrix - centroid, dim=1)
     return torch.sum(distances)
+
+def add_random_nodes_to_hyperedges(H, corruption_percentage=None):
+    H = H.copy()
+    num_nodes, num_hyperedges = H.shape
+    
+    if corruption_percentage is None:
+        corruption_percentage = 10  # Default: corrupt 10% of edges
+    
+    num_corruptions = int(num_hyperedges * (corruption_percentage / 100))
+    
+    for _ in range(num_corruptions):
+        random_node = np.random.randint(num_nodes)
+        random_hyperedge = np.random.randint(num_hyperedges)
+        if H[random_node, random_hyperedge] != 1:
+            H[random_node, random_hyperedge] = 1
+    
+    return H

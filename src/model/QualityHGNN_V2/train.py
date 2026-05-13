@@ -16,6 +16,7 @@ from torch import device, optim, split
 from data.data import *
 from data.n_preprocessing import *
 from utils.utils import *
+from utils.qualityutils import *
 
 
 class Train_QHGNN_v2:
@@ -25,6 +26,10 @@ class Train_QHGNN_v2:
         H, business_ids, _ = build_hypergraph_incidence_matrix(self.reviews)  # Commented out - using KNN method instead
         # Extract business_ids from reviews for data loading
         #_, business_ids, _ = build_hypergraph_incidence_matrix(self.reviews)
+        
+        # Corrupting the data xddd
+        print("Corrupting hyperedges by adding random nodes...")
+        H = add_random_nodes_to_hyperedges(H, corruption_percentage=10)  # Corrupt 10% of hyperedges by adding random nodes
 
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)
