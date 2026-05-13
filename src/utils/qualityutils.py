@@ -36,11 +36,11 @@ def add_random_nodes_to_hyperedges(H, corruption_percentage=None):
     num_nodes, num_hyperedges = H.shape
     
     if corruption_percentage is None:
-        corruption_percentage = 10  # Default: corrupt 10% of edges
+        corruption_percentage = 10  # Default: corrupt 10% of nodes
     
-    num_corruptions = int(num_hyperedges * (corruption_percentage / 100))
+    num_nodes_to_add = int(num_nodes * (corruption_percentage / 100))
     
-    for _ in range(num_corruptions):
+    for _ in range(num_nodes_to_add):
         random_node = np.random.randint(num_nodes)
         random_hyperedge = np.random.randint(num_hyperedges)
         if H[random_node, random_hyperedge] != 1:
