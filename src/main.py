@@ -11,7 +11,7 @@ def run_qhgnn_ablation():
     OUTPUT_CSV = "qhgnn_ablation_results.csv"
     
     with open(OUTPUT_CSV, "w", newline="") as csvfile:
-        fieldnames = ["timestamp", "corruption_pct", "seed", "valid_acc", "test_acc", "train_time", "total_time"]
+        fieldnames = ["corruption_pct", "test_acc"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
     
@@ -35,32 +35,22 @@ def run_qhgnn_ablation():
             )
             
             row = {
-                "timestamp": datetime.now().isoformat(),
                 "corruption_pct": corruption_pct,
-                "seed": 30000,
-                "valid_acc": result.valid_acc,
                 "test_acc": result.test_acc,
-                "train_time": result.training_runtime,
-                "total_time": result.total_runtime,
             }
             
             with open(OUTPUT_CSV, "a", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writerow(row)
             
-            print(f"Valid: {result.valid_acc:.2f}% | Test: {result.test_acc:.2f}%")
+            print(f"Test: {result.test_acc:.2f}%")
             
         except Exception as e:
             print(f"Error: {str(e)}")
             
             row = {
-                "timestamp": datetime.now().isoformat(),
                 "corruption_pct": corruption_pct,
-                "seed": 30000,
-                "valid_acc": "ERROR",
                 "test_acc": "ERROR",
-                "train_time": "ERROR",
-                "total_time": "ERROR",
             }
             with open(OUTPUT_CSV, "a", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
@@ -75,7 +65,7 @@ def run_moonlab_ablation():
     OUTPUT_CSV = "moonlab_ablation_results.csv"
     
     with open(OUTPUT_CSV, "w", newline="") as csvfile:
-        fieldnames = ["timestamp", "corruption_pct", "seed", "valid_acc", "test_acc", "train_time", "total_time"]
+        fieldnames = ["corruption_pct", "test_acc"]
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
         writer.writeheader()
     
@@ -97,32 +87,22 @@ def run_moonlab_ablation():
             )
             
             row = {
-                "timestamp": datetime.now().isoformat(),
                 "corruption_pct": corruption_pct,
-                "seed": 30000,
-                "valid_acc": result.valid_acc,
                 "test_acc": result.test_acc,
-                "train_time": result.training_runtime,
-                "total_time": result.total_runtime,
             }
             
             with open(OUTPUT_CSV, "a", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
                 writer.writerow(row)
             
-            print(f"Valid: {result.valid_acc:.2f}% | Test: {result.test_acc:.2f}%")
+            print(f"Test: {result.test_acc:.2f}%")
             
         except Exception as e:
             print(f"Error: {str(e)}")
             
             row = {
-                "timestamp": datetime.now().isoformat(),
                 "corruption_pct": corruption_pct,
-                "seed": 30000,
-                "valid_acc": "ERROR",
                 "test_acc": "ERROR",
-                "train_time": "ERROR",
-                "total_time": "ERROR",
             }
             with open(OUTPUT_CSV, "a", newline="") as csvfile:
                 writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
