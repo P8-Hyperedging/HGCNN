@@ -31,7 +31,10 @@ def calculate_total_distance_to_centroid_torch(local_feature_matrix, centroid):
     distances = torch.norm(local_feature_matrix - centroid, dim=1)
     return torch.sum(distances)
 
-def add_random_nodes_to_hyperedges(H, corruption_percentage=None):
+def add_random_nodes_to_hyperedges(H, corruption_percentage=None, seed=42):
+    if seed is not None:
+        np.random.seed(seed)
+    
     H = H.copy()
     num_nodes, num_hyperedges = H.shape
     
@@ -47,3 +50,4 @@ def add_random_nodes_to_hyperedges(H, corruption_percentage=None):
             H[random_node, random_hyperedge] = 1
     
     return H
+
