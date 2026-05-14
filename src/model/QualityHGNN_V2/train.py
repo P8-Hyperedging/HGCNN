@@ -20,16 +20,19 @@ from utils.qualityutils import *
 
 
 class Train_QHGNN_v2:
-    def __init__(self):
+    def __init__(self, corruption_percentage=10):
         self.reviews = load_postgres_review_data()
 
         H, business_ids, _ = build_hypergraph_incidence_matrix(self.reviews)  # Commented out - using KNN method instead
         # Extract business_ids from reviews for data loading
         #_, business_ids, _ = build_hypergraph_incidence_matrix(self.reviews)
         
-        # Corrupting the data xddd
-        print("Corrupting hyperedges by adding random nodes...")
-        H = add_random_nodes_to_hyperedges(H, corruption_percentage=10)  # Corrupt 10% of hyperedges by adding random nodes
+        # Corrupting the data
+        if corruption_percentage > 0:
+            print(f"Corrupting hyperedges by adding random nodes ({corruption_percentage}%)...")
+            H = add_random_nodes_to_hyperedges(H, corruption_percentage=corruption_percentage)
+        else:
+            print("No corruption applied")
 
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)

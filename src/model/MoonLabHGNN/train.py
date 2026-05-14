@@ -34,7 +34,8 @@ class Train_MoonLabHGNN:
             model_name="MoonLabHGNN",
             job_id=None,
             seed = None,
-            socket_logger=None
+            socket_logger=None,
+            corruption_percentage=0
             ) -> modelResult.ModelResult:
         total_runtime_start = time.time()
 
@@ -52,6 +53,12 @@ class Train_MoonLabHGNN:
 
         
         H, business_ids, business_to_idx = build_hypergraph_incidence_matrix(self.reviews)
+        
+        # Apply corruption if specified
+        if corruption_percentage > 0:
+            print(f"Corrupting hyperedges by adding random nodes ({corruption_percentage}%)...")
+            H = add_random_nodes_to_hyperedges(H, corruption_percentage=corruption_percentage)
+        
         hours = load_postgres_business_list_opening_hours(business_ids)
         businesses = load_postgres_business_list_data(business_ids)
 
