@@ -5,10 +5,10 @@ from model.QualityHGNN_V2.train import Train_QHGNN_v2
 from model.MoonLabHGNN.train import Train_MoonLabHGNN
 
 
-def run_qhgnn_ablation():
+def run_qhgnn_ablation(seed=30000):
     """Run QHGNN ablation study with corruption levels 0-100 in steps of 10"""
     
-    OUTPUT_CSV = "qhgnn_ablation_results.csv"
+    OUTPUT_CSV = f"qhgnn_ablation_results_seed{seed}.csv"
     
     with open(OUTPUT_CSV, "w", newline="") as csvfile:
         fieldnames = ["corruption_pct", "test_acc"]
@@ -29,7 +29,7 @@ def run_qhgnn_ablation():
                 dropout=0.16,
                 weight_decay=0.000021,
                 gamma=0.62,
-                seed=30000,
+                seed=seed,
                 patience=2000,
                 quality_weight=0.76
             )
@@ -59,10 +59,10 @@ def run_qhgnn_ablation():
     print(f"Done: {OUTPUT_CSV}")
 
 
-def run_moonlab_ablation():
+def run_moonlab_ablation(seed=30000):
     """Run MoonLab ablation study with corruption levels 0-100 in steps of 10"""
     
-    OUTPUT_CSV = "moonlab_ablation_results.csv"
+    OUTPUT_CSV = f"moonlab_ablation_results_seed{seed}.csv"
     
     with open(OUTPUT_CSV, "w", newline="") as csvfile:
         fieldnames = ["corruption_pct", "test_acc"]
@@ -82,7 +82,7 @@ def run_moonlab_ablation():
                 dropout=0.16,
                 weight_decay=0.000021,
                 gamma=0.62,
-                seed=30000,
+                seed=seed,
                 corruption_percentage=corruption_pct
             )
             
