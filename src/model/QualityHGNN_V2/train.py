@@ -76,15 +76,13 @@ class Train_QHGNN_v2:
             f"Total nodes: {n}, Training nodes: {len(train_split)}, Validation nodes: {len(valid_split)}, "
             f"Test nodes: {len(test_split)}"
         )
-        print(f"Sample train node IDs (first 10): {train_split[:10]}")
-        print(f"Sample val node IDs (first 10): {valid_split[:10]}")
 
-
+        # Create initial quality matrix based on variance.
         Q = create_quality_matrix_from_H(self.reviews)
         print(f"Q shape: {Q.shape}")
 
+        # Create propogation matrix, seperated into terms for dynamic quality weighting later.
         (DV2_H, W_diag, invDE_HT_DV2) = generate_G_from_H(H, True)
-        # Generating G terms
 
         LS = DV2_H
         RS = invDE_HT_DV2
@@ -97,14 +95,13 @@ class Train_QHGNN_v2:
         else:
             print("Using CPU")
 
-
         fts = torch.Tensor(fm).to(device)
         lbls = torch.Tensor(lv).long().to(device)
 
-        print("Unsparsing :(")
         LS = torch.Tensor(LS.toarray()).to(device)
         Q = torch.Tensor(Q).to(device)
         RS = torch.Tensor(RS.toarray()).to(device)
+        
         idx_train = train_split.long().to(device)
         idx_valid = valid_split.long().to(device)
         idx_test = test_split.long().to(device)
@@ -129,6 +126,7 @@ class Train_QHGNN_v2:
         scheduler = optim.lr_scheduler.MultiStepLR(optimizer, milestones=milestones, gamma=gamma)
         criterion = torch.nn.CrossEntropyLoss()
 
+        # Train model
         model_ft, valid_acc, valid_f1, train_runtime, total_epochs = self.train_model_QHGNN_v2(
             model_ft,
             criterion,
@@ -172,7 +170,6 @@ class Train_QHGNN_v2:
         }
 
         parameters_json = json.dumps(parameters)
-
 
         log_model_metrics(
             model_name=model_name,
